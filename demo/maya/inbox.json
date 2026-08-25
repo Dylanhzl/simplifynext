@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "id": "mail-001",
+      "source": "email",
+      "opportunity_id": "opp-brand-gap-laksa-lab",
+      "from": "hello@laksalab.sg",
+      "subject": "Re: collab — Laksa Lab x Maya",
+      "body": "Hi Maya, we loved the weekday laksa angle. Interested in a 3-post trial next month. Can we hop on a 15-min call?",
+      "label_hint": "interested"
+    }
+  ]
+}

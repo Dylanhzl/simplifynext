@@ -1,0 +1,15 @@
+{
+  "id": "maya",
+  "name": "Maya Tan",
+  "niche": "singapore hawker food",
+  "city": "Singapore",
+  "platforms": ["tiktok", "instagram"],
+  "audience": "20–30 year olds in Singapore who cook at home and miss hawker flavours",
+  "goals": [
+    "3 posts per week",
+    "first small brand deal with a local food brand"
+  ],
+  "brand_voice": "warm, practical, slightly cheeky; short sentences; always names the hawker stall or ingredient",
+  "no_go_topics": ["crash diets", "unsourced health claims", "mocking stall owners"],
+  "posting_cadence_per_week": 3
+}

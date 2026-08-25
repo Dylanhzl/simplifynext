@@ -1,0 +1,10 @@
+{"ts": "2026-08-26T00:00:00Z", "agent": "OpportunityFinderRoot", "pattern": "custom", "status": "ok", "summary": "Returned 5 seeded opportunities for Maya / Singapore hawker food.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:02Z", "agent": "ParallelResearch", "pattern": "parallel", "status": "ok", "summary": "Audience, peers, presence, pain running together on opp-laksa-weeknight.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:08Z", "agent": "ProposalGenerationAgent", "pattern": "llm", "status": "ok", "summary": "Drafted 3-post week plan + hero laksa script.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:10Z", "agent": "FactCheckerAgent", "pattern": "loop", "status": "fail", "summary": "Fail: unsourced calorie claim in hero script. must_fix=[cite or remove calories].", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:14Z", "agent": "DraftWriterAgent", "pattern": "loop", "status": "ok", "summary": "Rewrite 1: calorie line removed, hawker stall named.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:16Z", "agent": "VoiceCritiqueAgent", "pattern": "loop", "status": "ok", "summary": "Pass: voice matches Maya (warm, practical, named ingredient).", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:18Z", "agent": "PitchEmailAgent", "pattern": "sequential", "status": "ok", "summary": "Email drafted to Laksa Lab. Auto-sent (PAUSE_BEFORE_SEND=0).", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:19Z", "agent": "OutreachScriptAgent", "pattern": "sequential", "status": "ok", "summary": "DM + 30s call script written.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:20Z", "agent": "PersistAndSchedule", "pattern": "tool", "status": "ok", "summary": "Pipeline upsert + 3 posting slots this week.", "run_id": "fixture-week1"}
+{"ts": "2026-08-26T00:00:21Z", "agent": "PerformanceAdaptAgent", "pattern": "llm", "status": "ok", "summary": "Week-2 memory empty until replay_maya_week2.", "run_id": "fixture-week1"}

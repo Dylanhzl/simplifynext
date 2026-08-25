@@ -1,0 +1,26 @@
+{
+  "week": 1,
+  "posts": [
+    {
+      "id": "post-laksa",
+      "title": "15-minute weekday laksa",
+      "views": 41200,
+      "saves": 1800,
+      "avg_watch_pct": 67
+    },
+    {
+      "id": "post-otah",
+      "title": "Air-fryer otah",
+      "views": 18800,
+      "saves": 640,
+      "avg_watch_pct": 54
+    },
+    {
+      "id": "post-chendol",
+      "title": "Home chendol",
+      "views": 6200,
+      "saves": 90,
+      "avg_watch_pct": 28
+    }
+  ]
+}

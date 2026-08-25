@@ -1,0 +1,72 @@
+services:
+  mcp:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn mcp.server:app --host 0.0.0.0 --port 8085 --reload
+    ports:
+      - "8085:8085"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+
+  opportunity_finder:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn opportunity_finder.app:app --host 0.0.0.0 --port 8081 --reload
+    ports:
+      - "8081:8081"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+
+  pipeline_manager:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn pipeline_manager.app:app --host 0.0.0.0 --port 8082 --reload
+    ports:
+      - "8082:8082"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+
+  engagement_listener:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn engagement_listener.app:app --host 0.0.0.0 --port 8083 --reload
+    ports:
+      - "8083:8083"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+
+  cdr:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn cdr.app:app --host 0.0.0.0 --port 8084 --reload
+    ports:
+      - "8084:8084"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+
+  ui_client:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m uvicorn ui_client.app:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      PYTHONPATH: /app

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CreatorLoop</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">CreatorLoop</p>
+        <h1>Studio campaign board</h1>
+      </div>
+      <div class="campaign">
+        <label>Niche <input id="niche" value="singapore hawker food" /></label>
+        <label>City <input id="city" value="Singapore" /></label>
+        <button id="run">Run campaign</button>
+      </div>
+    </header>
+    <main>
+      <section>
+        <h2>Live agent trace</h2>
+        <ol id="trace"></ol>
+      </section>
+      <section>
+        <h2>Opportunities</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Title</th>
+              <th>Score</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="opps"></tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Memory</h2>
+        <pre id="memory">{"wins":[],"losses":[],"next_bias":[]}</pre>
+      </section>
+    </main>
+    <p class="hint">Scaffold UI. P4 replaces this with the full board (kanban, artifacts, calendar, inbox). Fixture events load from /static/run_events.jsonl via the page script until CDR SSE is live.</p>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

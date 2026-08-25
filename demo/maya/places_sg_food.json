@@ -1,0 +1,18 @@
+[
+  {
+    "place_id": "sg-laksa-lab",
+    "name": "Laksa Lab",
+    "city": "Singapore",
+    "category": "sauce_brand",
+    "has_short_form": false,
+    "notes": "Strong product, weak content. High-fit brand-gap."
+  },
+  {
+    "place_id": "sg-katong-laksa",
+    "name": "Katong Laksa Stall (seed)",
+    "city": "Singapore",
+    "category": "hawker",
+    "has_short_form": true,
+    "notes": "Collab candidate for 'correct order' reel."
+  }
+]
