@@ -1,6 +1,9 @@
 from typing import Any
 
+from cdr.agents._util import ping, with_span
+from cdr.llm import complete_json
 from shared.agent_base import Agent
+from shared.schemas import OutreachDraft
 
 
 class OutreachScriptAgent(Agent):
@@ -8,5 +11,22 @@ class OutreachScriptAgent(Agent):
     kind = "llm"
 
     async def run(self, state: dict[str, Any]) -> dict[str, Any]:
-        """DM + 30s collab-call script."""
-        raise NotImplementedError("OutreachScriptAgent is scaffold-only")
+        with with_span(self.name, self.kind, state):
+            ping(state, self.name, "llm", "DM + 30s collab-call script.")
+            opp = state.get("current") or {}
+            data = await complete_json(
+                "You are OutreachScriptAgent. Return {channel, to, subject, body} for a 30s call script.",
+                f"opp={opp}\nstrategy={state.get('outreach_strategy')}",
+                agent=self.name,
+            )
+            draft = OutreachDraft(
+                opportunity_id=str(opp.get("id", "")),
+                channel="call_script",
+                to=str(data.get("to", "Laksa Lab")),
+                subject=str(data.get("subject", "")),
+                body=str(data.get("body", "")),
+                status="drafted",
+            )
+            state.setdefault("outreach", []).append(draft.model_dump())
+            ping(state, self.name, "sequential", "Call script drafted.", artifact_ref="OutreachDraft")
+        return state

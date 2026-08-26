@@ -1,0 +1,104 @@
+"""In-memory run store for SSE + AG-UI. P2 only — not SQLite."""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+from shared.events import make_run_event
+from shared.schemas import PatternKind, RunEvent, RunState
+
+RUNS: dict[str, dict[str, Any]] = {}
+_queues: dict[str, asyncio.Queue] = {}
+
+
+def new_run(run_id: str, profile_id: str, opportunity_ids: list[str]) -> dict[str, Any]:
+    rec = {
+        "run_id": run_id,
+        "profile_id": profile_id,
+        "opportunity_ids": opportunity_ids,
+        "current_agent": "CDRRootAgent",
+        "events": [],
+        "packages": [],
+        "outreach": [],
+        "qa": [],
+        "agui": [],
+        "status": "running",
+    }
+    RUNS[run_id] = rec
+    _queues[run_id] = asyncio.Queue()
+    return rec
+
+
+def get_run(run_id: str) -> dict[str, Any] | None:
+    return RUNS.get(run_id)
+
+
+def emit(
+    run_id: str,
+    agent: str,
+    pattern: PatternKind | str,
+    summary: str,
+    status: str = "ok",
+    artifact_ref: str | None = None,
+) -> RunEvent:
+    pk = pattern if isinstance(pattern, PatternKind) else PatternKind(pattern)
+    ev = make_run_event(run_id, agent, pk, summary, status=status, artifact_ref=artifact_ref)
+    rec = RUNS.setdefault(run_id, {"run_id": run_id, "events": [], "agui": []})
+    rec.setdefault("events", []).append(ev.model_dump(mode="json"))
+    rec["current_agent"] = agent
+    agui = _to_agui(ev)
+    rec.setdefault("agui", []).append(agui)
+    q = _queues.get(run_id)
+    if q is not None:
+        q.put_nowait({"sse": ev.model_dump(mode="json"), "agui": agui})
+    return ev
+
+
+def emit_agui(run_id: str, event: dict[str, Any]) -> None:
+    rec = RUNS.setdefault(run_id, {"run_id": run_id, "events": [], "agui": []})
+    rec.setdefault("agui", []).append(event)
+    q = _queues.get(run_id)
+    if q is not None:
+        q.put_nowait({"sse": None, "agui": event})
+
+
+def finish(run_id: str, extra: dict[str, Any] | None = None) -> None:
+    rec = RUNS.setdefault(run_id, {"run_id": run_id})
+    rec["status"] = "done"
+    if extra:
+        rec.update(extra)
+    emit_agui(run_id, {"type": "RUN_FINISHED", "runId": run_id})
+    q = _queues.get(run_id)
+    if q is not None:
+        q.put_nowait(None)
+
+
+def queue(run_id: str) -> asyncio.Queue:
+    return _queues.setdefault(run_id, asyncio.Queue())
+
+
+def as_run_state(run_id: str) -> RunState:
+    rec = RUNS.get(run_id) or {"run_id": run_id, "profile_id": "", "current_agent": "", "events": []}
+    return RunState(
+        run_id=rec.get("run_id", run_id),
+        profile_id=rec.get("profile_id", ""),
+        current_agent=rec.get("current_agent", ""),
+        opportunity_ids=rec.get("opportunity_ids", []),
+        events=[RunEvent.model_validate(e) for e in rec.get("events", [])],
+        packages=rec.get("packages", []),
+        outreach=rec.get("outreach", []),
+        qa=rec.get("qa", []),
+    )
+
+
+def _to_agui(ev: RunEvent) -> dict[str, Any]:
+    return {
+        "type": "STEP_FINISHED" if ev.status in ("ok", "fail", "awaiting_send") else "STEP_STARTED",
+        "stepName": ev.agent,
+        "pattern": ev.pattern.value,
+        "status": ev.status,
+        "summary": ev.summary,
+        "artifactRef": ev.artifact_ref,
+        "runId": ev.run_id,
+    }
