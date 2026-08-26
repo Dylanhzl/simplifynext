@@ -1,22 +1,27 @@
 """MCP tool server (kick-off stack: Model Context Protocol).
 
-P1 fills search tools. P3 fills persist / calendar / inbox.
-Agents in CDR must call these tools via MCP, not random HTTP from prompts.
+Thin dispatcher over the registry in `mcp/tools/`. Tool implementations live in:
+
+  * `mcp/tools/search.py`   -- P1: search_web, search_local_places, fetch_url
+  * `mcp/tools/pipeline.py` -- P3: persist, calendar, inbox, memory
+
+Agents call these through `shared/mcp_client.py`, never with ad-hoc HTTP.
+
+Transport today is a JSON shim (`POST /mcp/call`) because P2 and P3 already
+build against it. Tools are plain async functions, so a real FastMCP server can
+expose the same registry later without touching any tool code.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from mcp.tools import ToolError, dispatch, list_specs
 from shared.cors import add_cors
+from shared.flags import use_fixtures
 
-PLACES = Path(__file__).resolve().parents[1] / "demo" / "maya" / "places_sg_food.json"
-INBOX = Path(__file__).resolve().parents[1] / "demo" / "maya" / "inbox.json"
-
-app = FastAPI(title="CreatorLoop MCP", version="0.1.0")
+app = FastAPI(title="CreatorLoop MCP", version="0.2.0")
 add_cors(app)
 
 
@@ -27,35 +32,30 @@ class ToolCall(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
-    return {"service": "mcp", "status": "ok", "protocol": "mcp"}
+    return {
+        "service": "mcp",
+        "status": "ok",
+        "protocol": "mcp",
+        "tools": len(list_specs()),
+        "fixtures": use_fixtures(),
+    }
 
 
 @app.get("/mcp/tools")
 def list_tools() -> dict:
-    return {
-        "tools": [
-            {"name": "search_web", "owner": "P1"},
-            {"name": "search_local_places", "owner": "P1"},
-            {"name": "fetch_url", "owner": "P1"},
-            {"name": "retrieve_creator_memory", "owner": "P2/P3", "kind": "rag"},
-            {"name": "persist_and_schedule", "owner": "P3"},
-            {"name": "save_calendar_event", "owner": "P3"},
-            {"name": "read_engagement_inbox", "owner": "P3"},
-        ]
-    }
+    """Self-describing tool list, including input schemas for P2's agents."""
+    return {"tools": list_specs()}
 
 
 @app.post("/mcp/call")
-def call_tool(req: ToolCall) -> dict:
-    """JSON stand-in until FastMCP stdio/SSE is wired. Same tool names."""
-    import json
+async def call_tool(req: ToolCall) -> dict:
+    """Invoke one tool by name. Errors come back as data, never a 500 --
+    a tool failure must not take down an agent run mid-demo."""
+    try:
+        result = await dispatch(req.name, req.arguments)
+    except ToolError as exc:
+        return {"name": req.name, "result": None, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001
+        return {"name": req.name, "result": None, "error": f"{type(exc).__name__}: {exc}"}
 
-    if req.name == "search_local_places" and PLACES.exists():
-        return {"name": req.name, "result": json.loads(PLACES.read_text())}
-    if req.name == "read_engagement_inbox" and INBOX.exists():
-        return {"name": req.name, "result": json.loads(INBOX.read_text())}
-    return {
-        "name": req.name,
-        "result": None,
-        "note": "scaffold — implement in mcp/server.py / FastMCP",
-    }
+    return {"name": req.name, "result": result, "error": None}

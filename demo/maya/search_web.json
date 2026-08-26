@@ -1,0 +1,53 @@
+{
+  "_note": "Fixture corpus for the MCP search_web tool (USE_FIXTURES=1). Matched by keyword overlap against the query. Same result shape as the live Tavily adapter: {title, url, snippet, published, source}.",
+  "results": [
+    {
+      "title": "Weeknight laksa searches climb during exam season",
+      "url": "https://example.local/trend/easy-laksa",
+      "snippet": "Singapore search interest in 'easy laksa' and '15 minute laksa' rises sharply through exam and year-end work weeks. Home cooks want hawker flavour without a two-hour stock.",
+      "published": "2026-08-02",
+      "source": "trends",
+      "keywords": ["laksa", "easy", "weeknight", "quick", "trend", "noodle", "stock", "15 minute"]
+    },
+    {
+      "title": "Hostel and dorm cooking: air fryer hawker hacks",
+      "url": "https://example.local/trend/airfryer-otah",
+      "snippet": "University and hostel cooks in Singapore are adapting hawker staples like otah and satay to air fryers because wok access is limited. Short-form demand outstrips supply.",
+      "published": "2026-07-28",
+      "source": "trends",
+      "keywords": ["otah", "air fryer", "airfryer", "hostel", "dorm", "student", "uni", "wok", "trend"]
+    },
+    {
+      "title": "Laksa Lab: local paste brand, strong product, thin social",
+      "url": "https://example.local/brands/laksa-lab",
+      "snippet": "Laksa Lab sells a rempah paste from a small Singapore shopfront with steady retail pickup, but posts almost no short-form video. Competitors with weaker product out-reach them online.",
+      "published": "2026-08-10",
+      "source": "brands",
+      "keywords": ["laksa lab", "brand", "paste", "rempah", "sauce", "gap", "shopfront", "sponsor", "partner"]
+    },
+    {
+      "title": "Katong laksa: what locals actually order",
+      "url": "https://example.local/collab/katong-order",
+      "snippet": "Tourist-facing laksa content dominates search while locals complain the ordering script is never shown. Stall owners are open to collaborations that show the correct order.",
+      "published": "2026-08-05",
+      "source": "collab",
+      "keywords": ["katong", "collab", "stall", "hawker", "order", "local", "reel", "partnership"]
+    },
+    {
+      "title": "Dessert how-tos underperform savoury in SG food short-form",
+      "url": "https://example.local/analytics/dessert-gap",
+      "snippet": "Chendol and ice kacang tutorials show lower completion and save rates than noodle content among Singapore home-cook audiences over the last two quarters.",
+      "published": "2026-08-12",
+      "source": "analytics",
+      "keywords": ["chendol", "dessert", "ice kacang", "sweet", "underperform", "watch time", "gap"]
+    },
+    {
+      "title": "Singapore home cooks want stall-accurate recipes, not fusion",
+      "url": "https://example.local/audience/stall-accurate",
+      "snippet": "Audience research on 20-30 year old Singapore home cooks shows strong preference for recipes that name the originating stall and avoid fusion reinterpretation.",
+      "published": "2026-07-20",
+      "source": "audience",
+      "keywords": ["audience", "home cook", "singapore", "stall", "authentic", "recipe", "research", "hawker"]
+    }
+  ]
+}
