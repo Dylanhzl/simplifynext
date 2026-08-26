@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lsof -nP -iTCP -sTCP:LISTEN)",
+      "Bash(curl -s -m 10 -X POST http://localhost:8081/opportunities/search -H 'Content-Type: application/json' -d '{\"profile_id\":\"maya\",\"niche\":\"singapore hawker food\",\"city\":\"Singapore\",\"limit\":8}')",
+      "Bash(curl -s -m 5 http://localhost:8085/mcp/tools)",
+      "Bash(curl -s -m 5 -X POST http://localhost:8085/mcp/call -H 'Content-Type: application/json' -d '{\"name\":\"search_local_places\",\"arguments\":{\"city\":\"Singapore\"}}')",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(sed 's/=.*/= <empty>/;t;s/=.*/= <SET>/')",
+      "Bash(.venv/bin/python -c \"import importlib.util as u; print\\('tavily:', 'OK' if u.find_spec\\('tavily'\\) else 'MISSING'\\); print\\('mcp SDK:', 'OK' if u.find_spec\\('mcp'\\) else 'MISSING'\\)\")"
+    ]
+  }
+}

@@ -7,3 +7,4 @@ class ServicePorts(BaseModel):
     pipeline_manager: int = 8082
     engagement_listener: int = 8083
     cdr: int = 8084
+    mcp: int = 8085
