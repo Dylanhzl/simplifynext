@@ -38,6 +38,9 @@ concurrently. They all append to `harvested`, which is declared with an
 `operator.add` reducer in [`agents/state.py`](agents/state.py) — without that
 reducer LangGraph raises on the concurrent writes.
 
+[`graph.py`](graph.py) exposes `run_search()` for MCP / harness callers and
+delegates to `OpportunityFinderRoot`.
+
 ## Tools
 
 Agents call MCP (:8085) through [`shared/mcp_client.py`](../shared/mcp_client.py),
@@ -46,6 +49,9 @@ never ad-hoc HTTP:
 - `search_web` — TrendHarvester, BrandGap, CollabScout
 - `search_local_places` — BrandGap (`has_short_form=False`), CollabScout
 - `fetch_url` — available for evidence checks
+
+Local fixture helpers also live in [`tools.py`](tools.py) / [`normalize.py`](normalize.py)
+for offline harvest paths used by MCP scaffolding.
 
 ## Routes (frozen)
 
@@ -61,6 +67,8 @@ curl -X POST localhost:8081/opportunities/search \
 - `GET /health`
 
 `mode` is `live` when the LangGraph pipeline ran, `seed` when it fell back.
+
+MCP also exposes `find_opportunities` on :8085, which runs the same pipeline.
 
 ## Schema authority
 

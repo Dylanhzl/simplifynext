@@ -2,8 +2,8 @@
 
 Thin dispatcher over the registry in `mcp/tools/`. Tool implementations live in:
 
-  * `mcp/tools/search.py`   -- P1: search_web, search_local_places, fetch_url
-  * `mcp/tools/pipeline.py` -- P3: persist, calendar, inbox, memory
+  * `mcp/tools/search.py`   -- P1: search_web, search_local_places, fetch_url, find_opportunities
+  * `mcp/tools/pipeline.py` -- P3: persist, calendar, inbox, memory, CRUD, email
 
 Agents call these through `shared/mcp_client.py`, never with ad-hoc HTTP.
 

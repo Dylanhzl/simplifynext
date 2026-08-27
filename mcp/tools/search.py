@@ -6,6 +6,7 @@ flipping USE_FIXTURES=0 on day 5 changes no downstream agent code.
   search_web           -> {"results": [{title, url, snippet, published, source}]}
   search_local_places  -> {"places":  [{place_id, name, city, category, ...}]}
   fetch_url            -> {"url", "status", "title", "text", "fetched"}
+  find_opportunities   -> {"opportunities": [...], "run_id", "mode", ...}
 """
 
 from __future__ import annotations
@@ -221,4 +222,44 @@ async def fetch_url(url: str, max_chars: int = 4000) -> dict[str, Any]:
         "title": _html_to_text(title_match.group(1)) if title_match else "",
         "text": _html_to_text(body)[:max_chars],
         "fetched": "live",
+    }
+
+
+# --------------------------------------------------------------------------
+# find_opportunities
+# --------------------------------------------------------------------------
+
+
+@tool(
+    "find_opportunities",
+    owner="P1",
+    description="Run the Opportunity Finder pipeline and return ranked opportunities.",
+)
+async def find_opportunities(
+    niche: str = "singapore hawker food",
+    city: str = "Singapore",
+    limit: int = 8,
+    profile_id: str = "maya",
+    profile: dict | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Agent-as-tool entry used by CDR when it calls MCP instead of :8081."""
+    from opportunity_finder.graph import run_search
+
+    state = await run_search(
+        {
+            "run_id": kwargs.get("run_id") or "mcp-find",
+            "profile_id": profile_id,
+            "profile": profile or {"id": profile_id, "niche": niche, "city": city},
+            "niche": niche,
+            "city": city,
+            "limit": int(limit),
+        }
+    )
+    opps = list(state.get("opportunities") or [])
+    return {
+        "opportunities": opps[: int(limit)],
+        "run_id": state.get("run_id"),
+        "mode": state.get("mode", "live"),
+        "notes": state.get("notes", []),
     }

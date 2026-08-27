@@ -56,6 +56,7 @@ async def search(req: SearchRequest) -> dict:
 
     result = await ROOT.run(
         {
+            "profile_id": req.profile_id,
             "profile": req.profile.model_dump() if req.profile else None,
             "niche": req.niche,
             "city": req.city,

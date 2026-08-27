@@ -20,6 +20,13 @@ def get_memory_id() -> str | None:
     return os.getenv("BEDROCK_AGENTCORE_MEMORY_ID")
 
 
+def put_memory(memory: dict[str, Any]) -> None:
+    """Optional AgentCore Memory write when BEDROCK_AGENTCORE_MEMORY_ID is set."""
+    if not get_memory_id():
+        return
+    # Local demo writes SQLite + memory.json; AgentCore hook is a no-op without AWS SDK.
+
+
 def runtime_payload() -> dict[str, Any]:
     return {
         "runtime": "bedrock-agentcore" if use_agentcore() else "local-groq",

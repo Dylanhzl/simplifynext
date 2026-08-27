@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 
+from engagement_listener.graph import run_engagement
 from shared.cors import add_cors
 
 INBOX = Path(__file__).resolve().parents[1] / "demo" / "maya" / "inbox.json"
@@ -29,16 +30,46 @@ def inbox() -> dict:
 @app.post("/engagement/ingest")
 async def ingest(request: Request) -> dict:
     body = await request.json()
-    return {"ok": True, "accepted": body, "note": "scaffold — P3 implements EngagementIngestAgent"}
+    state = await run_engagement(
+        {
+            "run_id": "ingest",
+            "source": body.get("source") or "email",
+            "payload": body.get("payload") or body,
+            "opportunity_id": body.get("opportunity_id"),
+            "include_analytics": body.get("source") == "analytics",
+        }
+    )
+    return {
+        "ok": True,
+        "classified": state.get("classified"),
+        "memory": state.get("memory"),
+    }
 
 
 @app.post("/engagement/replay_maya_week2")
-def replay() -> dict:
+async def replay() -> dict:
     inbox = json.loads(INBOX.read_text()) if INBOX.exists() else {"items": []}
     analytics = json.loads(ANALYTICS.read_text()) if ANALYTICS.exists() else {}
+    state = await run_engagement(
+        {
+            "run_id": "maya-week2",
+            "items": [
+                {
+                    "source": "email",
+                    "payload": item,
+                    "opportunity_id": item.get("opportunity_id"),
+                }
+                for item in inbox.get("items") or []
+            ],
+            "analytics": analytics,
+            "include_analytics": True,
+            "source": "email",
+        }
+    )
     return {
         "ok": True,
         "inbox": inbox,
         "analytics": analytics,
-        "note": "scaffold — P3 should classify replies and write memory",
+        "classified": state.get("classified"),
+        "memory": state.get("memory"),
     }

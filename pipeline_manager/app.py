@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 
+from pipeline_manager import db
+from pipeline_manager.graph import run_persist
 from shared.cors import add_cors
-
-MEMORY_PATH = Path(__file__).resolve().parents[1] / "demo" / "maya" / "memory.json"
-STORE: dict = {"opportunities": {}, "calendar": [], "memory": None}
 
 app = FastAPI(title="Pipeline Manager", version="0.1.0")
 add_cors(app)
+db.init()
 
 
 @app.get("/health")
@@ -23,38 +20,70 @@ def health() -> dict:
 async def upsert(request: Request) -> dict:
     body = await request.json()
     oid = body.get("id") or body.get("opportunity_id")
-    if oid:
-        STORE["opportunities"][oid] = body
-    return {"ok": True, "id": oid, "note": "scaffold in-memory store — P3 replaces with SQLite"}
+    if not oid:
+        return {"ok": False, "error": "missing id"}
+    state = await run_persist(
+        {
+            "run_id": body.get("run_id") or "upsert",
+            "opportunity_id": oid,
+            "opportunity": body,
+            "package": body.get("package"),
+            "brief": body.get("brief"),
+            "outreach": body.get("outreach"),
+            "qa": body.get("qa"),
+            "status": body.get("status"),
+            "target_status": body.get("status") or body.get("target_status"),
+        }
+    )
+    return {"ok": True, "id": oid, "opportunity": state.get("opportunity"), "qualification": state.get("qualification")}
 
 
 @app.get("/pipeline/opportunities")
 def list_opportunities() -> dict:
-    return {"opportunities": list(STORE["opportunities"].values())}
+    return {"opportunities": db.list_opportunities()}
 
 
 @app.get("/pipeline/opportunities/{oid}")
 def get_opportunity(oid: str) -> dict:
-    return STORE["opportunities"].get(oid, {"error": "not found", "id": oid})
+    row = db.get_opportunity(oid)
+    if not row:
+        return {"error": "not found", "id": oid}
+    return row
 
 
 @app.post("/pipeline/calendar")
 async def calendar(request: Request) -> dict:
     body = await request.json()
-    STORE["calendar"].append(body)
-    return {"ok": True, "event": body}
+    event = db.save_calendar_event(body)
+    return {"ok": True, "event": event}
 
 
 @app.post("/tools/persist_and_schedule")
 async def persist_and_schedule(request: Request) -> dict:
     body = await request.json()
-    oid = body.get("id") or body.get("opportunity_id") or "unknown"
-    STORE["opportunities"][oid] = body
-    return {"ok": True, "id": oid, "note": "scaffold — P3 implements PersistAndSchedule"}
+    state = await run_persist(
+        {
+            "run_id": body.get("run_id") or "persist",
+            "opportunity_id": body.get("opportunity_id") or body.get("id"),
+            "opportunity": body.get("opportunity"),
+            "package": body.get("package"),
+            "brief": body.get("brief"),
+            "outreach": body.get("outreach"),
+            "qa": body.get("qa"),
+            "status": body.get("status"),
+            "target_status": body.get("status") or "outreached",
+            "current": {"id": body.get("opportunity_id") or body.get("id")},
+        }
+    )
+    return {
+        "ok": True,
+        "id": state.get("opportunity_id"),
+        "status": (state.get("status_result") or {}).get("status"),
+        "qualification": state.get("qualification"),
+        "calendar": state.get("calendar"),
+    }
 
 
 @app.get("/pipeline/memory")
 def memory() -> dict:
-    if MEMORY_PATH.exists():
-        return json.loads(MEMORY_PATH.read_text())
-    return {"wins": [], "losses": [], "next_bias": []}
+    return db.read_memory()

@@ -9,9 +9,11 @@ mcp/
   server.py          thin dispatcher — rarely edited, avoid conflicts here
   tools/
     __init__.py      registry + @tool decorator + dispatch()
-    search.py        P1: search_web, search_local_places, fetch_url
+    search.py        P1: search_web, search_local_places, fetch_url, find_opportunities
     pipeline.py      P3: persist_and_schedule, save_calendar_event,
-                         read_engagement_inbox, retrieve_creator_memory
+                         read_engagement_inbox, retrieve_creator_memory,
+                         save_opportunity, get_opportunity, update_status,
+                         send_email, write_memory
 ```
 
 **P1 edits `search.py`, P3 edits `pipeline.py`.** Nobody edits the same file,
@@ -58,10 +60,16 @@ tool must never 500 an agent run mid-demo.
 | `search_web` | P1 | ✅ fixture + Tavily adapter |
 | `search_local_places` | P1 | ✅ filters city / category / has_short_form |
 | `fetch_url` | P1 | ✅ live fetch + fixture intercept |
+| `find_opportunities` | P1 | ✅ runs Opportunity Finder pipeline |
 | `retrieve_creator_memory` | P2/P3 | ✅ keyword RAG (swap for embeddings) |
 | `read_engagement_inbox` | P3 | ✅ fixture |
-| `persist_and_schedule` | P3 | ⬜ stub |
-| `save_calendar_event` | P3 | ⬜ stub |
+| `save_opportunity` | P3 | ✅ SQLite via pipeline_manager.db |
+| `get_opportunity` | P3 | ✅ SQLite via pipeline_manager.db |
+| `update_status` | P3 | ✅ StatusTrackerAgent |
+| `persist_and_schedule` | P3 | ✅ Pipeline Manager graph |
+| `save_calendar_event` | P3 | ✅ SQLite via pipeline_manager.db |
+| `send_email` | P3 | ✅ writes demo/outbox/mail |
+| `write_memory` | P3 | ✅ SQLite + memory.json |
 
 ## Fixtures vs live
 
@@ -80,4 +88,8 @@ Transport today is a JSON shim because P2/P3 already build against `/mcp/call`.
 The `mcp` SDK is installed; a FastMCP server can wrap the same `REGISTRY` and
 run alongside the shim without changing any tool code.
 
-See [`../STACK.md`](../STACK.md).
+## Tools (owners)
+
+P1: `search_web`, `search_local_places`, `fetch_url`, `find_opportunities`
+
+P3: `retrieve_creator_memory`, `save_opportunity`, `get_opportunity`, `update_status`, `persist_and_schedule`, `save_calendar_event`, `send_email`, `read_engagement_inbox`, `write_memory`
