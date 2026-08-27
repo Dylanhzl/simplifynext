@@ -1,15 +1,36 @@
 {
-  "id": "maya",
+  "profile_id": "maya",
   "name": "Maya Tan",
-  "niche": "singapore hawker food",
+  "handle": "@mayacooks.sg",
   "city": "Singapore",
+  "niche": "home-cook / hawker-style food",
   "platforms": ["tiktok", "instagram"],
-  "audience": "20–30 year olds in Singapore who cook at home and miss hawker flavours",
+  "followers": { "tiktok": 8400, "instagram": 3100 },
+  "median_views": 5200,
+  "posting_cadence_actual": "1-2 per week, irregular",
+  "posting_cadence_goal": "3 per week, same 3 slots",
   "goals": [
-    "3 posts per week",
-    "first small brand deal with a local food brand"
+    "3 posts per week on a repeatable schedule",
+    "first paid local brand deal under SGD 800",
+    "stop losing Sunday nights to planning"
   ],
-  "brand_voice": "warm, practical, slightly cheeky; short sentences; always names the hawker stall or ingredient",
-  "no_go_topics": ["crash diets", "unsourced health claims", "mocking stall owners"],
-  "posting_cadence_per_week": 3
+  "pain": "Every week starts from a blank page. Research, scripting, filming, captions and outreach are all manual, so two of the three posts never happen.",
+  "voice": {
+    "tone": "warm, fast, a little self-deprecating",
+    "language": "English with Singlish seasoning (lah, sian, shiok) - never forced",
+    "signature": "cooks in a real HDB kitchen, no studio lighting, hands-only shots",
+    "avoid": ["corporate food-blogger voice", "unverifiable superlatives", "fake urgency"]
+  },
+  "constraints": {
+    "filming_days": ["tue", "thu", "sun"],
+    "budget_sgd_per_week": 40,
+    "no_go": ["alcohol brands", "non-halal collabs without a labelled disclaimer", "crypto"]
+  },
+  "brand_targets": [
+    { "name": "Laksa Lab", "area": "Tiong Bahru", "why": "new stall, zero creator content" },
+    { "name": "Chilli Padi Sambal", "area": "DTC", "why": "sells online, no UGC at all" },
+    { "name": "Toh Kee Kaya", "area": "Bedok", "why": "heritage brand, ageing audience" }
+  ],
+  "best_performing": ["laksa", "chilli crab", "hawker dupes", "noodle pulls"],
+  "worst_performing": ["3-ingredient desserts", "baking", "smoothies"]
 }
