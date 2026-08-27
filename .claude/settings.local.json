@@ -9,7 +9,12 @@
       "Bash(sed 's/=.*/= <empty>/;t;s/=.*/= <SET>/')",
       "Bash(.venv/bin/python -c \"import importlib.util as u; print\\('tavily:', 'OK' if u.find_spec\\('tavily'\\) else 'MISSING'\\); print\\('mcp SDK:', 'OK' if u.find_spec\\('mcp'\\) else 'MISSING'\\)\")",
       "Bash(grep -viE \"^\\\\s*$|span|resource|attributes|instrumentation|status|context|kind|start_time|end_time|parent_id|trace_id|span_id|^\\\\}|^\\\\{|\\\\\"|events|links\")",
-      "Bash(grep -vE '^\\\\s+\"|^\\\\s+\\\\}|^\\\\s+\\\\{|^\\\\s*\\\\}|^\\\\s*\\\\{|^\\\\s*\\\\],|^\\\\s*\\\\[')"
+      "Bash(grep -vE '^\\\\s+\"|^\\\\s+\\\\}|^\\\\s+\\\\{|^\\\\s*\\\\}|^\\\\s*\\\\{|^\\\\s*\\\\],|^\\\\s*\\\\[')",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(awk '{print \" behind origin/P1: \"$1\" unpushed: \"$2}')",
+      "Bash(awk '{print \"  main has that you dont: \"$1\"   you have that main DOESNT: \"$2}')"
     ]
   }
 }
