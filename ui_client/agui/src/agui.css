@@ -1,0 +1,16 @@
+/* React-only additions on top of the shared board stylesheet.
+   The static fallback uses <li> for trace rows; the React tree uses divs. */
+.trace-row{
+  flex:0 0 auto;
+  padding:7px 8px; border-radius:7px; border-left:2px solid var(--line);
+  background:var(--panel-2); animation:slidein .28s ease;
+}
+.trace-row.running{border-left-color:var(--info)}
+.trace-row.done{border-left-color:var(--ok)}
+.trace-row.fail{border-left-color:var(--fail); background:rgba(255,107,107,.07)}
+
+/* The static page puts .campaign-bar/.board directly in <body>, which is the
+   flex column. React nests them under #root, so #root has to become that
+   column or the panels collapse to content height. */
+#root{display:flex; flex-direction:column; height:100%; min-height:0}
+body{overflow:hidden}

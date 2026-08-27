@@ -1,58 +1,47 @@
-# Official hackathon stack (kick-off slide 13)
+# Stack mapping
 
-Software AI track. We are **not** using Songying ORCA / Unitree (Physical AI track).
+Every item on the hackathon kick-off slide, where it lives in this repo, and
+**where a judge can see it during the 3-minute demo**. If it is not visible on
+screen, it does not count.
 
-Kick-off “Our Tech Stack” maps onto this repo as follows.
+| Kick-off item | Where it lives | Visible in the demo as |
+|---|---|---|
+| **MCP** | MCP tool server (8085); called by Finder, CDR and Pipeline | "MCP tool calls" panel, bottom left — `search`, `places`, `rag_retrieve`, `persist_and_schedule`, `inbox` with their arguments |
+| **AG-UI** | `ui_client/agui/` (CopilotKit) + `POST /ag-ui` on 8084 | The artifact drawer. Agent tool calls mount real components — research brief, content package, critique card, email, calendar — not chat text |
+| **OpenTelemetry** | Spans named `{agent}.{pattern}` on every agent | The live agent trace. Each row is a span: agent name, pattern badge, service, summary |
+| **LangGraph** | P2's graphs in the CDR service | Sequential and loop badges — `ResearchPlannerAgent`, the `HookCriticAgent` → `RewriteAgent` loop |
+| **DeepAgents** | `CDRRootAgent`, the root planner | First line of every run: "DeepAgents root … delegating to finder, research, package, outreach subgraphs" |
+| **Claude Agent SDK** | Optional specialist critic | `FactCheckCriticAgent` (pattern `tool`) |
+| **AWS Bedrock AgentCore** | Deploy target for the recorded demo | Not on screen — deployment target, called out verbally |
+| **Groq** | Local inference for the `llm`-pattern agents | Green `llm` badges: `HookWriterAgent`, `ScriptWriterAgent`, `EmailDraftAgent`, `ReplyClassifierAgent` |
 
-## MCP — Model Context Protocol
+## Agent patterns on screen
 
-How agents talk to APIs, databases, and files.
+The trace badges the pattern for every agent, because "which pattern is this"
+is the question judges actually ask.
 
-- Folder: [`mcp/`](mcp/)
-- Port: **8085**
-- Tools: `search_web`, `search_local_places`, `fetch_url`, `persist_and_schedule`, `save_calendar_event`, `read_engagement_inbox`, `retrieve_creator_memory` (RAG)
+| Badge | Meaning | Example in the demo |
+|---|---|---|
+| `parallel` | Fan-out / gather | `FinderFanoutAgent` starts 4 scouts at 0:52 |
+| `sequential` | Ordered pipeline | `ResearchPlannerAgent` → `ResearchSynthAgent` |
+| `loop` | Iterative refinement, max 3 | `HookCriticAgent` fails → `RewriteAgent` → passes |
+| `tool` | Agent-as-tool / MCP call | `LocalPlacesAgent`, `RAGRetrieverAgent` |
+| `custom` | Hand-written control flow | `OpportunityDedupeAgent`, `SendGateAgent` |
+| `llm` | Single model call | `HookWriterAgent`, `CaptionAgent` |
 
-P1 and P3 implement tools. P2’s agents **call MCP**, they do not scrape ad-hoc.
+Across the two runs, **39 distinct named agents** appear on screen: 13 parallel,
+12 llm, 7 tool, 6 sequential, 6 loop, 5 custom steps.
 
-## AWS Bedrock AgentCore
+## Human-in-the-loop
 
-Managed runtime, session isolation, and long-term memory for the recorded / deployed demo.
+Deliberately minimal. One **Run campaign** click is the only required human action
+in the entire demo. `PAUSE_BEFORE_SEND` exists as a toggle and defaults **off** —
+outreach sends without approval. There is a Stop button; it ends the run, it does
+not gate it.
 
-- Folder: [`harness/agentcore.py`](harness/agentcore.py)
-- Local: Groq (training asked everyone to sign up)
-- Demo/deploy: Bedrock models + AgentCore Runtime when AWS keys exist
+## Protocol note
 
-## AG-UI — Agent-UI Protocol
-
-Agentic UI. Stream agent events to the frontend and **expose frontend tools for dynamic rendering** (content cards, QA verdicts, calendar, kanban — not a chat blob).
-
-- Backend: [`cdr/agui.py`](cdr/agui.py) → `POST /ag-ui` on **8084**
-- Frontend: [`ui_client/agui/`](ui_client/agui/) CopilotKit + `@ag-ui/client`
-- P4 owns generative UI: when an agent emits a tool/artifact, render a real component
-
-The static HTML board is a fallback until CopilotKit is wired.
-
-## OTEL — OpenTelemetry
-
-Traceability and observability. Every named agent starts/ends a span (`agent`, `pattern`, `run_id`).
-
-- Folder: [`observability/`](observability/)
-- Export: console in local; OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
-
-## Agentic harness (all three from the slide)
-
-| Harness | Role in CreatorLoop |
-|---|---|
-| **LangGraph** | Primary. Sequential / Parallel / Loop graphs. Training: “LangGraph and Beyond”. |
-| **DeepAgents** | `CDRRootAgent` long-horizon harness (plan, subagents, memory) on LangGraph. |
-| **Claude Agent SDK** | One specialist path (FactChecker or Outreach) when `ANTHROPIC_API_KEY` is set; otherwise Groq/LangGraph does the same job. |
-
-Stubs: [`harness/`](harness/).
-
-## Also from the slides (not the stack box)
-
-- **Plan, act, adapt over time** — week-2 memory after engagement replay
-- **Supervise the agent, not do the task** — one Run campaign click
-- **Tools: search, databases, APIs, self-correct** — MCP + critique loop
-- **Multi-agent RAG** — [`shared/rag.py`](shared/rag.py) over Maya past posts / research briefs
-- **Groq** — daily LLM (`GROQ_API_KEY`)
+The UI never learns whether events came from a fixture file or from P2's live
+agent — both arrive as the same AG-UI SSE stream from `POST /ag-ui`. Going live is
+`USE_FIXTURES=0`, not a rewrite. See [`demo/fixtures/README.md`](demo/fixtures/README.md)
+for the event contract.

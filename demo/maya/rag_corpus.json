@@ -1,17 +1,76 @@
-[
-  {
-    "id": "maya-past-laksa",
-    "text": "Maya's best performing post was a 15-minute weekday laksa. High saves. Audience wants hostel-friendly hawker hacks.",
-    "source": "analytics"
-  },
-  {
-    "id": "maya-voice",
-    "text": "Brand voice: warm, practical, slightly cheeky. Always name the stall or ingredient. No unsourced calorie claims.",
-    "source": "profile"
-  },
-  {
-    "id": "maya-chendol",
-    "text": "Home chendol underperformed. Low watch time. Week-2 memory should deprioritize dessert how-tos.",
-    "source": "analytics"
-  }
-]
+{
+  "corpus_id": "maya_v1",
+  "description": "Retrievable notes about Maya's past posts, audience and local brand landscape. Pipeline Manager (8082) serves this via the MCP rag_retrieve tool.",
+  "documents": [
+    {
+      "id": "post_001",
+      "type": "past_post",
+      "title": "Laksa from scratch in my HDB kitchen",
+      "posted": "2026-06-14",
+      "platform": "tiktok",
+      "views": 18400,
+      "saves": 910,
+      "notes": "Best performer to date. Noodle pull at 0:03 held retention to 61%. Comments asked repeatedly where to buy laksa paste."
+    },
+    {
+      "id": "post_002",
+      "type": "past_post",
+      "title": "Chilli crab but make it one pan",
+      "posted": "2026-06-28",
+      "platform": "tiktok",
+      "views": 12100,
+      "saves": 540,
+      "notes": "Strong. Messy-hands close-up worked. Caption question drove 3x comment rate."
+    },
+    {
+      "id": "post_003",
+      "type": "past_post",
+      "title": "3-ingredient mango dessert",
+      "posted": "2026-07-05",
+      "platform": "instagram",
+      "views": 2100,
+      "saves": 41,
+      "notes": "Underperformed badly. Audience did not come for dessert. Retention fell off a cliff at 0:06."
+    },
+    {
+      "id": "post_004",
+      "type": "past_post",
+      "title": "Kaya toast at home vs Toh Kee",
+      "posted": "2026-07-19",
+      "platform": "tiktok",
+      "views": 9600,
+      "saves": 300,
+      "notes": "Comparison format performs. Named a real stall, stall owner commented."
+    },
+    {
+      "id": "audience_001",
+      "type": "audience",
+      "title": "Audience shape",
+      "notes": "72% Singapore, 61% aged 18-34, peak activity Tue and Thu 19:00-21:00 SGT and Sun 11:00 SGT. Saves outrank likes as the intent signal."
+    },
+    {
+      "id": "voice_001",
+      "type": "voice",
+      "title": "Voice rules learned from comments",
+      "notes": "Audience rejects polished food-blogger phrasing. First person, present tense, one Singlish word maximum per script. Never claim 'best in Singapore' - the comments punish it."
+    },
+    {
+      "id": "brand_001",
+      "type": "brand",
+      "title": "Laksa Lab, Tiong Bahru",
+      "notes": "Opened Apr 2026. 340 Instagram followers, no reels, no creator collabs. Owner Wei Sheng replies to DMs personally. Nearby creators charge SGD 350-600 for a single reel."
+    },
+    {
+      "id": "brand_002",
+      "type": "brand",
+      "title": "Chilli Padi Sambal",
+      "notes": "DTC sambal brand, Shopee storefront only. Zero user-generated content. Has a Google Form for collab enquiries rather than an email address."
+    },
+    {
+      "id": "market_001",
+      "type": "market",
+      "title": "Local rate benchmarks",
+      "notes": "SG micro creators 5k-15k followers: SGD 250-500 per TikTok, SGD 150-300 per IG reel, SGD 600-900 for a 3-post bundle. Food stalls prefer bundles with a usage licence."
+    }
+  ]
+}

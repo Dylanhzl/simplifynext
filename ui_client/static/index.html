@@ -1,48 +1,124 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CreatorLoop</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-  </head>
-  <body>
-    <header>
-      <div>
-        <p class="eyebrow">CreatorLoop</p>
-        <h1>Studio campaign board</h1>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CreatorLoop - Studio Board</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="campaign-bar">
+  <div class="brand">
+    <span class="logo">◐</span>
+    <div>
+      <h1>CreatorLoop</h1>
+      <p class="tag">plan · act · adapt</p>
+    </div>
+  </div>
+
+  <div class="campaign-fields">
+    <label>Niche
+      <input id="f-niche" value="home-cook / hawker-style food">
+    </label>
+    <label>City
+      <input id="f-city" value="Singapore">
+    </label>
+    <label>Profile
+      <div class="profile-chip" id="f-profile">
+        <span class="avatar">M</span>
+        <span><b>Maya Tan</b><i>@mayacooks.sg</i></span>
       </div>
-      <div class="campaign">
-        <label>Niche <input id="niche" value="singapore hawker food" /></label>
-        <label>City <input id="city" value="Singapore" /></label>
-        <button id="run">Run campaign</button>
+    </label>
+  </div>
+
+  <div class="campaign-actions">
+    <div class="toggles">
+      <label class="switch" title="Optional HITL. Default off - the agents send on their own.">
+        <input type="checkbox" id="f-pause"> <span>Pause before send</span>
+      </label>
+      <span class="mode-badge" id="mode-badge">…</span>
+    </div>
+    <button id="btn-run" class="run">Run campaign</button>
+    <button id="btn-stop" class="stop" disabled>Stop</button>
+  </div>
+</header>
+
+<div class="run-status" id="run-status">
+  <span class="dot"></span>
+  <span id="run-status-text">Idle. One click starts the week.</span>
+  <span class="spacer"></span>
+  <span id="run-meta"></span>
+</div>
+
+<main class="board">
+
+  <!-- ---------------- left: live agent trace ---------------- -->
+  <section class="col col-trace">
+    <div class="panel grow">
+      <h2>Live agent trace <span class="count" id="trace-count">0</span></h2>
+      <p class="hint">OTEL span names. Every line is a real named agent, not "AI is thinking".</p>
+      <ol class="trace" id="trace"></ol>
+    </div>
+
+    <div class="panel">
+      <h2>MCP tool calls <span class="count" id="mcp-count">0</span></h2>
+      <ul class="mcp" id="mcp-list"><li class="empty">No tool calls yet.</li></ul>
+    </div>
+  </section>
+
+  <!-- ---------------- centre: the board ---------------- -->
+  <section class="col col-main">
+
+    <div class="panel">
+      <h2>Opportunities <span class="count" id="opp-count">0</span></h2>
+      <table class="opps">
+        <thead><tr><th>Type</th><th>Title</th><th class="num">Score</th><th>Status</th></tr></thead>
+        <tbody id="opp-body"><tr class="empty"><td colspan="4">Run a campaign to fill the board.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Pipeline</h2>
+      <p class="hint">Statuses owned by Pipeline Manager (8082).</p>
+      <div class="kanban" id="kanban"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Week <span class="count subtle" id="cal-week">—</span></h2>
+      <div class="calendar" id="calendar"></div>
+    </div>
+
+    <div class="two-up">
+      <div class="panel">
+        <h2>Engagement inbox <span class="count" id="inbox-count">0</span></h2>
+        <ul class="inbox" id="inbox"><li class="empty">Nothing inbound yet. Run week 2.</li></ul>
       </div>
-    </header>
-    <main>
-      <section>
-        <h2>Live agent trace</h2>
-        <ol id="trace"></ol>
-      </section>
-      <section>
-        <h2>Opportunities</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Title</th>
-              <th>Score</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="opps"></tbody>
-        </table>
-      </section>
-      <section>
-        <h2>Memory</h2>
-        <pre id="memory">{"wins":[],"losses":[],"next_bias":[]}</pre>
-      </section>
-    </main>
-    <p class="hint">Scaffold UI. P4 replaces this with the full board (kanban, artifacts, calendar, inbox). Fixture events load from /static/run_events.jsonl via the page script until CDR SSE is live.</p>
-    <script src="/static/app.js"></script>
-  </body>
+      <div class="panel">
+        <h2>What we learned <span class="count" id="memory-count">0</span></h2>
+        <ul class="memory" id="memory"><li class="empty">Memory is written at the end of a run.</li></ul>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ---------------- right: generative artifact drawer ---------------- -->
+  <section class="col col-artifacts">
+    <div class="panel grow">
+      <h2>Artifacts <span class="count" id="artifact-count">0</span></h2>
+      <p class="hint">Agent tool calls rendered as components, not chat text.</p>
+      <div class="artifacts" id="artifacts">
+        <div class="empty-art">
+          <span>◫</span>
+          <p>When an agent calls a render tool, the card lands here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/components.js"></script>
+<script src="/static/app.js"></script>
+</body>
 </html>
