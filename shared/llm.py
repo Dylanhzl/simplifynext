@@ -8,6 +8,16 @@ Agents are async, so these are async. Three entry points:
 
 `available()` is False when GROQ_API_KEY is unset. Agents should check it and
 fall back to fixtures rather than raising -- the demo must never hard-fail.
+
+COMPATIBILITY
+-------------
+Agents written against the earlier fixture-first API keep working unchanged:
+
+    from shared.llm import USE_FIXTURES, complete_json, fixture_json, seed_opportunities
+
+`complete_json` is a shim over `chat_json`, so those agents inherit the 429
+retry and connection-error backoff below for free. New agents should prefer
+`chat_model`, which validates output against shared/schemas.py.
 """
 
 from __future__ import annotations
@@ -22,9 +32,17 @@ from typing import Any, Awaitable, Callable, TypeVar
 from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
 
+from shared.fixtures import fixture_json, seed_opportunities
+from shared.flags import use_fixtures
+
 load_dotenv()
 
 T = TypeVar("T", bound=BaseModel)
+
+# Module-level constant kept for agents that import it directly. Prefer
+# shared.flags.use_fixtures(), which re-reads the env instead of freezing it
+# at import time.
+USE_FIXTURES = use_fixtures()
 
 DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 FAST_MODEL = os.getenv("GROQ_FAST_MODEL", "openai/gpt-oss-20b")
@@ -166,3 +184,42 @@ async def chat_model(
             user = f"{user}\n\nYour previous reply failed validation:\n{exc}\nFix those fields."
 
     raise LLMError(f"{schema.__name__} validation failed after {MAX_ATTEMPTS} attempts: {last}")
+
+
+# --------------------------------------------------------------------------
+# Compatibility shim
+# --------------------------------------------------------------------------
+
+
+async def complete_json(system: str, user: str, *, agent: str = "") -> dict[str, Any]:
+    """Fixture-first JSON completion. Original signature, hardened internals.
+
+    Behaviour matches the earlier implementation -- fixtures when USE_FIXTURES=1
+    or GROQ_API_KEY is missing -- but live calls now route through `chat_json`,
+    so they retry through Groq's 8k tokens/minute rate limit instead of raising.
+
+    Falls back to the agent's fixture if the model is unreachable, so a rate
+    limit can never take a service down mid-demo.
+    """
+    if use_fixtures() or not available():
+        return fixture_json(agent, user)
+
+    try:
+        return await chat_json(system, user)
+    except LLMError:
+        return fixture_json(agent, user)
+
+
+__all__ = [
+    "USE_FIXTURES",
+    "DEFAULT_MODEL",
+    "FAST_MODEL",
+    "LLMError",
+    "available",
+    "chat",
+    "chat_json",
+    "chat_model",
+    "complete_json",
+    "fixture_json",
+    "seed_opportunities",
+]
