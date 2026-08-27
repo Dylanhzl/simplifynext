@@ -14,7 +14,8 @@
       "Bash(git fetch *)",
       "Bash(git rev-list *)",
       "Bash(awk '{print \" behind origin/P1: \"$1\" unpushed: \"$2}')",
-      "Bash(awk '{print \"  main has that you dont: \"$1\"   you have that main DOESNT: \"$2}')"
+      "Bash(awk '{print \"  main has that you dont: \"$1\"   you have that main DOESNT: \"$2}')",
+      "Bash(awk '{print \"  upstream/main ahead: \"$1\"   your unpushed commits: \"$2}')"
     ]
   }
 }
