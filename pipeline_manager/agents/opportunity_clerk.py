@@ -11,7 +11,9 @@ def classify_kind(payload: dict[str, Any]) -> str:
         return "research_brief"
     if "channel" in payload and "body" in payload and "to" in payload:
         return "outreach_draft"
-    if "type" in payload and "score" in payload and "why_now" in payload:
+    # Opportunity rows always carry type+score; why_now/title/id may arrive from
+    # Finder, CDR, MCP, or UAT with slightly different completeness.
+    if "type" in payload and "score" in payload and ("id" in payload or "title" in payload):
         return "opportunity"
     return "unknown"
 
@@ -27,6 +29,12 @@ class OpportunityClerkAgent(Agent):
         state["record_kind"] = record_kind
 
         if record_kind == "opportunity":
+            if "id" not in payload:
+                raise KeyError("opportunity payload requires 'id'")
+            payload.setdefault("why_now", "")
+            payload.setdefault("source_agent", "pipeline")
+            payload.setdefault("city", "")
+            payload.setdefault("niche", "")
             stored = await db.upsert_opportunity(payload)
             state["id"] = stored["id"]
             state["stored"] = stored

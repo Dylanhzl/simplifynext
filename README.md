@@ -26,6 +26,30 @@ To record the 3-minute video, use the pacing the cue sheet is measured against:
 DEMO_SPEED=0.6 python3 ui_client/server.py
 ```
 
+### Full stack (UAT)
+
+Install deps once, then bring up Finder / Pipeline / Engagement / CDR / MCP / UI together:
+
+```bash
+python -m venv .venv
+# Windows: .\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# Windows:
+.\scripts\run_local.ps1
+# macOS/Linux:
+./scripts/run_local.sh
+```
+
+With services up, run the frozen-HTTP smoke suite:
+
+```powershell
+.\scripts\uat_smoke.ps1
+```
+
+`USE_FIXTURES=1` (default) keeps Finder/MCP on seed data so UAT does not need Groq keys.
+
 ### The AG-UI client (CopilotKit)
 
 The static board above is the no-keys fallback. The AG-UI client is the real one:
