@@ -12,9 +12,12 @@ fall back to fixtures rather than raising -- the demo must never hard-fail.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-from typing import Any, TypeVar
+import random
+import re
+from typing import Any, Awaitable, Callable, TypeVar
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
@@ -24,7 +27,13 @@ load_dotenv()
 T = TypeVar("T", bound=BaseModel)
 
 DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+FAST_MODEL = os.getenv("GROQ_FAST_MODEL", "openai/gpt-oss-20b")
 MAX_ATTEMPTS = 3
+
+# Groq's free tier is 8k tokens/minute. Parallel agent fan-out blows through
+# that in one burst, so every call retries on 429 instead of failing the run.
+RATE_LIMIT_RETRIES = int(os.getenv("GROQ_RATE_LIMIT_RETRIES", "5"))
+_RETRY_HINT = re.compile(r"try again in ([\d.]+)s", re.IGNORECASE)
 
 
 class LLMError(RuntimeError):
@@ -44,6 +53,32 @@ def _client():
     return AsyncGroq(api_key=key)
 
 
+def _retry_delay(exc: Exception, attempt: int) -> float:
+    """Groq tells us how long to wait; fall back to exponential backoff."""
+    hint = _RETRY_HINT.search(str(exc))
+    if hint:
+        return min(float(hint.group(1)) + 0.4, 30.0)
+    return min(2.0**attempt, 16.0) + random.uniform(0, 0.5)
+
+
+async def _with_rate_limit_retry(call: Callable[[], Awaitable[Any]]) -> Any:
+    """Retry a Groq call through 429s. Raises LLMError once retries run out."""
+    from groq import APIConnectionError, InternalServerError, RateLimitError
+
+    last: Exception | None = None
+    for attempt in range(RATE_LIMIT_RETRIES):
+        try:
+            return await call()
+        except RateLimitError as exc:
+            last = exc
+            await asyncio.sleep(_retry_delay(exc, attempt))
+        except (APIConnectionError, InternalServerError) as exc:
+            last = exc
+            await asyncio.sleep(_retry_delay(exc, attempt))
+
+    raise LLMError(f"Groq unavailable after {RATE_LIMIT_RETRIES} retries: {last}")
+
+
 async def chat(
     system: str,
     user: str,
@@ -53,14 +88,16 @@ async def chat(
     max_tokens: int = 2048,
 ) -> str:
     """Plain text completion."""
-    resp = await _client().chat.completions.create(
-        model=model or DEFAULT_MODEL,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+    resp = await _with_rate_limit_retry(
+        lambda: _client().chat.completions.create(
+            model=model or DEFAULT_MODEL,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
     )
     return (resp.choices[0].message.content or "").strip()
 
@@ -78,15 +115,17 @@ async def chat_json(
     last: Exception | None = None
 
     for attempt in range(MAX_ATTEMPTS):
-        resp = await _client().chat.completions.create(
-            model=model or DEFAULT_MODEL,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+        resp = await _with_rate_limit_retry(
+            lambda: _client().chat.completions.create(
+                model=model or DEFAULT_MODEL,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
         )
         raw = (resp.choices[0].message.content or "").strip()
         try:
