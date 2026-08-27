@@ -185,7 +185,9 @@ button.stop:active:not(:disabled){transform:scale(.97)}
   padding:19px 21px; flex:0 0 auto;
   box-shadow:0 1px 2px rgba(28,27,25,.04), 0 1px 3px rgba(28,27,25,.03);
 }
-.panel.grow{display:flex; flex-direction:column; flex:1 1 auto; min-height:260px}
+.panel.grow{display:flex; flex-direction:column; flex:1 1 0; min-height:240px; overflow:hidden}
+/* The trace is the proof-of-work panel, so it takes the larger share. */
+.col-rail>.panel.grow:first-child{flex-grow:1.25}
 .panel h2{
   margin:0 0 3px; font-size:15.5px; font-weight:600; letter-spacing:-.01em;
   text-transform:none; color:var(--ink);
@@ -201,7 +203,7 @@ button.stop:active:not(:disabled){transform:scale(.97)}
 .two-up{display:grid; grid-template-columns:1fr 1fr; gap:18px}
 
 /* ---------------- agent trace ---------------- */
-.trace{list-style:none; margin:0; padding:0; overflow-y:auto; flex:1 1 auto; min-height:200px; display:flex; flex-direction:column}
+.trace{list-style:none; margin:0; padding:0; overflow-y:auto; flex:1 1 auto; min-height:0; display:flex; flex-direction:column}
 .trace li{
   flex:0 0 auto;
   padding:9px 0; border-bottom:1px solid var(--line-soft); border-left:0; border-radius:0;
