@@ -87,10 +87,12 @@
       .map((o) => {
         const s = o.score;
         const cls = s == null ? "lo" : s >= 0.8 ? "hi" : s >= 0.6 ? "mid" : "lo";
+        // Score leads: the list is sorted by it, so it is the column the eye
+        // should land on first.
         return `<tr title="${esc(o.rationale || "")}">
-          <td><span class="type-chip ${esc(o.type)}">${esc(String(o.type).replace("_", " "))}</span></td>
-          <td>${esc(o.title)}</td>
           <td class="num"><span class="score ${cls}">${s == null ? "—" : s.toFixed(2)}</span></td>
+          <td>${esc(o.title)}</td>
+          <td><span class="type-chip ${esc(o.type)}">${esc(String(o.type).replace("_", " "))}</span></td>
           <td><span class="type-chip">${esc(o.status)}</span></td>
         </tr>`;
       })

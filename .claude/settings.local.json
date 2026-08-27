@@ -15,7 +15,17 @@
       "Bash(git rev-list *)",
       "Bash(awk '{print \" behind origin/P1: \"$1\" unpushed: \"$2}')",
       "Bash(awk '{print \"  main has that you dont: \"$1\"   you have that main DOESNT: \"$2}')",
-      "Bash(awk '{print \"  upstream/main ahead: \"$1\"   your unpushed commits: \"$2}')"
+      "Bash(awk '{print \"  upstream/main ahead: \"$1\"   your unpushed commits: \"$2}')",
+      "Bash(gh api *)",
+      "Bash(python3 -)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \":8000 = %{http_code}\\\\n\" http://localhost:8000/)",
+      "Bash(curl -s -o /dev/null -w \":5173 = %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:8000/static/styles.css)",
+      "Bash(curl -s -o /dev/null -w \"  styles.css = %{http_code}\\\\n\" http://localhost:8000/static/styles.css)",
+      "Bash(curl -s -o /dev/null -w \"  agui.css = %{http_code}\\\\n\" \"http://localhost:5173/src/agui.css\")",
+      "Bash(grep -n \"function \\\\|\\\\$\\(\\\\\"\" ui_client/static/app.js)",
+      "Bash(python3 -c \"s=open\\('ui_client/static/styles.css'\\).read\\(\\);print\\('  styles.css',s.count\\('{'\\),s.count\\('}'\\),'balanced' if s.count\\('{'\\)==s.count\\('}'\\) else 'MISMATCH'\\)\")"
     ]
   }
 }

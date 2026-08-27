@@ -39,12 +39,9 @@ export default function App() {
       />
       <RunStatus board={board} />
 
+      {/* Two columns, matching the static board: what the week became on the
+          left, the evidence and the AG-UI artifacts in the rail. */}
       <main className="board">
-        <section className="col col-trace">
-          <AgentTrace board={board} />
-          <McpPanel board={board} />
-        </section>
-
         <section className="col col-main">
           <OpportunityTable board={board} />
           <Kanban board={board} />
@@ -55,7 +52,9 @@ export default function App() {
           </div>
         </section>
 
-        <section className="col col-artifacts">
+        <section className="col col-rail">
+          <AgentTrace board={board} />
+          <McpPanel board={board} />
           <ArtifactDrawer board={board} />
         </section>
       </main>
