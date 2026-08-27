@@ -1,22 +1,33 @@
 """P3 pipeline / engagement tools for the MCP server.
 
-Implemented against pipeline_manager.db and the Pipeline Manager graph so CDR
-and engagement agents can persist, schedule, and update status via MCP.
+Pipeline CRUD goes through Pipeline Manager HTTP (single writer). Local tools
+handle inbox fixtures, RAG memory retrieval, and demo email outbox.
 """
 
 from __future__ import annotations
 
 import json
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from mcp.tools import tool
-from pipeline_manager import db
+from shared.http_clients import PIPELINE_MANAGER_URL
 from shared.rag import retrieve
 
 DEMO = Path(__file__).resolve().parents[2] / "demo" / "maya"
 INBOX_FIXTURE = DEMO / "inbox.json"
 OUTBOX_MAIL = Path(__file__).resolve().parents[2] / "demo" / "outbox" / "mail"
+
+
+async def _pipeline_call(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        r = await client.request(method, f"{PIPELINE_MANAGER_URL}{path}", **kwargs)
+        r.raise_for_status()
+        return r.json()
 
 
 @tool(
@@ -38,13 +49,13 @@ async def retrieve_creator_memory(query: str, k: int = 4) -> list[dict[str, Any]
 async def read_engagement_inbox(unread_only: bool = False) -> dict[str, Any]:
     """Inbound replies. Fixture-backed until Engagement Listener is wired live."""
     if not INBOX_FIXTURE.exists():
-        return {"messages": [], "mode": "fixture"}
+        return {"items": [], "mode": "fixture"}
 
     data = json.loads(INBOX_FIXTURE.read_text())
-    messages = data.get("messages", data) if isinstance(data, dict) else data
-    if unread_only and isinstance(messages, list):
-        messages = [m for m in messages if not m.get("read", False)]
-    return {"messages": messages, "mode": "fixture"}
+    items = data.get("items", data.get("messages", data)) if isinstance(data, dict) else data
+    if unread_only and isinstance(items, list):
+        items = [m for m in items if not m.get("read", False)]
+    return {"items": items, "mode": "fixture"}
 
 
 @tool(
@@ -53,11 +64,7 @@ async def read_engagement_inbox(unread_only: bool = False) -> dict[str, Any]:
     description="Upsert an opportunity row into the pipeline SQLite store.",
 )
 async def save_opportunity(**kwargs: Any) -> dict[str, Any]:
-    oid = str(kwargs.get("id") or kwargs.get("opportunity_id") or "")
-    if not oid:
-        return {"ok": False, "error": "missing id"}
-    row = db.upsert_opportunity(oid, kwargs)
-    return {"ok": True, "opportunity": row}
+    return await _pipeline_call("POST", "/pipeline/upsert", json=kwargs)
 
 
 @tool(
@@ -67,7 +74,7 @@ async def save_opportunity(**kwargs: Any) -> dict[str, Any]:
 )
 async def get_opportunity(id: str = "", opportunity_id: str = "") -> dict[str, Any]:
     oid = str(id or opportunity_id or "")
-    return db.get_opportunity(oid)
+    return await _pipeline_call("GET", f"/pipeline/opportunities/{oid}")
 
 
 @tool(
@@ -81,17 +88,12 @@ async def update_status(
     status: str = "",
     **kwargs: Any,
 ) -> dict[str, Any]:
-    from pipeline_manager.agents.status_tracker import StatusTrackerAgent
-
     oid = str(id or opportunity_id or "")
-    state = await StatusTrackerAgent().run(
-        {
-            "opportunity_id": oid,
-            "target_status": status,
-            "run_id": kwargs.get("run_id") or "mcp",
-        }
+    return await _pipeline_call(
+        "POST",
+        "/tools/update_status",
+        json={"opportunity_id": oid, "status": status, **kwargs},
     )
-    return state.get("status_result") or {"ok": False, "id": oid}
 
 
 @tool(
@@ -100,28 +102,7 @@ async def update_status(
     description="Persist an opportunity/package and schedule its calendar slots.",
 )
 async def persist_and_schedule(**kwargs: Any) -> dict[str, Any]:
-    from pipeline_manager.graph import run_persist
-
-    state = await run_persist(
-        {
-            "run_id": kwargs.get("run_id") or "mcp-persist",
-            "opportunity_id": kwargs.get("opportunity_id") or kwargs.get("id"),
-            "opportunity": kwargs.get("opportunity"),
-            "package": kwargs.get("package"),
-            "brief": kwargs.get("brief"),
-            "outreach": kwargs.get("outreach"),
-            "qa": kwargs.get("qa"),
-            "status": kwargs.get("status"),
-            "target_status": kwargs.get("status") or "outreached",
-            "current": {"id": kwargs.get("opportunity_id") or kwargs.get("id")},
-        }
-    )
-    return {
-        "ok": True,
-        "id": state.get("opportunity_id"),
-        "status": (state.get("status_result") or {}).get("status"),
-        "calendar": state.get("calendar"),
-    }
+    return await _pipeline_call("POST", "/tools/persist_and_schedule", json=kwargs)
 
 
 @tool(
@@ -130,28 +111,59 @@ async def persist_and_schedule(**kwargs: Any) -> dict[str, Any]:
     description="Save a post, follow-up, or meeting to the content calendar.",
 )
 async def save_calendar_event(**kwargs: Any) -> dict[str, Any]:
-    return db.save_calendar_event(kwargs)
+    return await _pipeline_call("POST", "/pipeline/calendar", json=kwargs)
 
 
 @tool(
     "send_email",
     owner="P3",
-    description="Write an outreach email to demo/outbox/mail (fixture SMTP).",
+    description="Write an outreach email to demo/outbox/mail (optional SMTP).",
 )
 async def send_email(
     to: str = "",
     subject: str = "",
     body: str = "",
+    opportunity_id: str = "draft",
     **kwargs: Any,
 ) -> dict[str, Any]:
-    OUTBOX_MAIL.mkdir(parents=True, exist_ok=True)
-    to_addr = str(to or kwargs.get("to") or "unknown")
+    to_addr = str(to or kwargs.get("to") or "unknown@local")
     subj = str(subject or kwargs.get("subject") or "")
     text = str(body or kwargs.get("body") or "")
-    safe = "".join(ch if ch.isalnum() else "-" for ch in to_addr)[:40]
-    path = OUTBOX_MAIL / f"{safe or 'mail'}.eml"
-    path.write_text(f"To: {to_addr}\nSubject: {subj}\n\n{text}\n", encoding="utf-8")
-    return {"ok": True, "path": str(path), "to": to_addr}
+    oid = str(opportunity_id or kwargs.get("opportunity_id") or "draft")
+    from_addr = os.getenv("FROM_EMAIL", "maya@creatorloop.local")
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    OUTBOX_MAIL.mkdir(parents=True, exist_ok=True)
+    eml_path = OUTBOX_MAIL / f"{oid}-{ts}.eml"
+    eml_path.write_text(
+        f"From: {from_addr}\nTo: {to_addr}\nSubject: {subj}\n\n{text}\n",
+        encoding="utf-8",
+    )
+
+    status = "sent_mock"
+    smtp_host = os.getenv("SMTP_HOST")
+    if smtp_host:
+        try:
+            import smtplib
+            from email.message import EmailMessage
+
+            msg = EmailMessage()
+            msg["From"] = from_addr
+            msg["To"] = to_addr
+            msg["Subject"] = subj
+            msg.set_content(text)
+            with smtplib.SMTP(smtp_host) as smtp:
+                user = os.getenv("SMTP_USER")
+                password = os.getenv("SMTP_PASSWORD")
+                if user and password:
+                    smtp.starttls()
+                    smtp.login(user, password)
+                smtp.send_message(msg)
+            status = "sent"
+        except Exception as exc:  # best effort in demo — .eml is already on disk
+            status = f"smtp_failed: {exc}"
+
+    return {"status": status, "eml_path": str(eml_path), "to": to_addr}
 
 
 @tool(
@@ -165,8 +177,16 @@ async def write_memory(
     next_bias: list | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    return db.write_memory(
-        list(wins or kwargs.get("wins") or []),
-        list(losses or kwargs.get("losses") or []),
-        list(next_bias or kwargs.get("next_bias") or []),
-    )
+    memory = {
+        "wins": list(wins if wins is not None else kwargs.get("wins") or []),
+        "losses": list(losses if losses is not None else kwargs.get("losses") or []),
+        "next_bias": list(next_bias if next_bias is not None else kwargs.get("next_bias") or []),
+    }
+    # Allow callers to pass a full memory dict as kwargs-only payload.
+    if not any(memory.values()) and isinstance(kwargs.get("memory"), dict):
+        memory = {
+            "wins": kwargs["memory"].get("wins", []),
+            "losses": kwargs["memory"].get("losses", []),
+            "next_bias": kwargs["memory"].get("next_bias", []),
+        }
+    return await _pipeline_call("POST", "/pipeline/memory", json=memory)

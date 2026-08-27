@@ -1,12 +1,11 @@
 from typing import Any
 
-from pipeline_manager.agents.calendar_assistant import CalendarAssistantAgent
-from pipeline_manager.agents.follow_up_planner import FollowUpPlannerAgent
+from shared.agent_base import Agent
+from observability.otel import agent_span
 from pipeline_manager.agents.opportunity_clerk import OpportunityClerkAgent
 from pipeline_manager.agents.qualification import QualificationAgent
-from pipeline_manager.agents.status_tracker import StatusTrackerAgent
-from shared.agent_base import Agent
-from shared.agent_util import ping, with_span
+from pipeline_manager.agents.follow_up_planner import FollowUpPlannerAgent
+from pipeline_manager.agents.calendar_assistant import CalendarAssistantAgent
 
 
 class PersistAndSchedule(Agent):
@@ -14,14 +13,15 @@ class PersistAndSchedule(Agent):
     kind = "sequential"
 
     async def run(self, state: dict[str, Any]) -> dict[str, Any]:
-        with with_span(self.name, self.kind, state):
-            ping(state, self.name, "sequential", "Clerk → qualify → follow-up → calendar → status.")
-            await OpportunityClerkAgent().run(state)
-            await QualificationAgent().run(state)
-            await FollowUpPlannerAgent().run(state)
-            await CalendarAssistantAgent().run(state)
-            if not state.get("target_status") and not state.get("status"):
-                state["target_status"] = "outreached"
-            await StatusTrackerAgent().run(state)
-            ping(state, self.name, "sequential", f"Persisted {state.get('opportunity_id')}.")
+        """Clerk → qualify → follow-up → calendar."""
+        run_id = state.get("run_id", "")
+        steps = (
+            OpportunityClerkAgent(),
+            QualificationAgent(),
+            FollowUpPlannerAgent(),
+            CalendarAssistantAgent(),
+        )
+        for step in steps:
+            with agent_span(step.name, step.kind, run_id):
+                state = await step.run(state)
         return state

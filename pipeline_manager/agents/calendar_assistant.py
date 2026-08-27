@@ -1,29 +1,13 @@
-from __future__ import annotations
-
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from pipeline_manager import db
-from pipeline_manager.agents.opportunity_clerk import _oid
 from shared.agent_base import Agent
-from shared.agent_util import ping, with_span
-from shared.llm import complete_json
-from shared.schemas import CalendarEvent
+from pipeline_manager import db
 
-SG = ZoneInfo("Asia/Singapore")
-WEEKDAY = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
-
-
-def next_slot(weekday_name: str, hhmm: str) -> datetime:
-    hour, minute = [int(x) for x in hhmm.split(":")[:2]]
-    now = datetime.now(SG)
-    target = WEEKDAY[weekday_name]
-    days = (target - now.weekday()) % 7
-    candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days)
-    if candidate <= now:
-        candidate += timedelta(days=7)
-    return candidate
+SGT = ZoneInfo("Asia/Singapore")
+POST_HOUR = 18
+SLOT_OFFSETS_DAYS = (1, 3, 5)
 
 
 class CalendarAssistantAgent(Agent):
@@ -31,29 +15,25 @@ class CalendarAssistantAgent(Agent):
     kind = "llm"
 
     async def run(self, state: dict[str, Any]) -> dict[str, Any]:
-        with with_span(self.name, self.kind, state):
-            ping(state, self.name, "llm", "Propose posting and follow-up slots (Asia/Singapore).")
-            data = await complete_json(
-                "You are CalendarAssistantAgent. Return {slots: [{kind, weekday, time, title}] } for this week SGT.",
-                f"package={state.get('package')}\nfollow_up={state.get('follow_up')}",
-                agent=self.name,
+        """Propose posting and follow-up slots (Asia/Singapore)."""
+        if state.get("record_kind") != "opportunity" or not state.get("stored"):
+            return state
+
+        record = state["stored"]
+        now = datetime.now(SGT)
+        slots = []
+        for offset in SLOT_OFFSETS_DAYS:
+            day = (now + timedelta(days=offset)).date()
+            slot_dt = datetime.combine(day, time(POST_HOUR, 0), tzinfo=SGT)
+            event = await db.save_calendar_event(
+                {
+                    "opportunity_id": record["id"],
+                    "slot": slot_dt.isoformat(),
+                    "kind": "post",
+                    "title": f"Post: {record.get('title', record['id'])}",
+                }
             )
-            oid = _oid(state)
-            events = []
-            for i, slot in enumerate(data.get("slots") or []):
-                kind = str(slot.get("kind") or "post")
-                if kind not in ("post", "followup", "meeting"):
-                    kind = "post"
-                when = next_slot(str(slot.get("weekday") or "Tue"), str(slot.get("time") or "19:30"))
-                event = CalendarEvent(
-                    id=f"cal-{oid}-{kind}-{i}",
-                    opportunity_id=oid,
-                    slot=when,
-                    kind=kind,  # type: ignore[arg-type]
-                    title=str(slot.get("title") or kind),
-                ).model_dump(mode="json")
-                db.save_calendar_event(event)
-                events.append(event)
-            state["calendar"] = events
-            ping(state, self.name, "tool", f"{len(events)} calendar events.", artifact_ref="calendar")
+            slots.append(event)
+
+        state.setdefault("calendar_slots", []).extend(slots)
         return state

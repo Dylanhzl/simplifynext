@@ -1,19 +1,19 @@
 from typing import Any
 
-from pipeline_manager import db
 from shared.agent_base import Agent
-from shared.agent_util import ping, with_span
-from shared.llm import complete_json, seed_opportunities
+from pipeline_manager import db
 
 
-def _oid(state: dict[str, Any]) -> str:
-    return str(
-        state.get("opportunity_id")
-        or (state.get("opportunity") or {}).get("id")
-        or (state.get("current") or {}).get("id")
-        or (state.get("package") or {}).get("opportunity_id")
-        or "unknown"
-    )
+def classify_kind(payload: dict[str, Any]) -> str:
+    if "week_plan" in payload:
+        return "content_package"
+    if "audience_insight" in payload:
+        return "research_brief"
+    if "channel" in payload and "body" in payload and "to" in payload:
+        return "outreach_draft"
+    if "type" in payload and "score" in payload and "why_now" in payload:
+        return "opportunity"
+    return "unknown"
 
 
 class OpportunityClerkAgent(Agent):
@@ -21,44 +21,19 @@ class OpportunityClerkAgent(Agent):
     kind = "llm"
 
     async def run(self, state: dict[str, Any]) -> dict[str, Any]:
-        with with_span(self.name, self.kind, state):
-            ping(state, self.name, "llm", "Idempotent upsert.")
-            await complete_json(
-                "You are OpportunityClerkAgent. Confirm upsert. Return {ok, action}.",
-                f"payload_keys={list(state.keys())}",
-                agent=self.name,
-            )
-            oid = _oid(state)
-            payload = dict(state.get("opportunity") or state.get("current") or {})
-            seed = {o["id"]: o for o in seed_opportunities()}
-            if oid in seed:
-                merged = dict(seed[oid])
-                merged.update({k: v for k, v in payload.items() if v not in (None, "", [], {})})
-                payload = merged
-            if not payload.get("id"):
-                payload = dict(
-                    seed.get(oid)
-                    or {
-                        "id": oid,
-                        "title": oid,
-                        "type": "brand",
-                        "why_now": "",
-                        "city": "Singapore",
-                        "niche": "singapore hawker food",
-                        "score": 80,
-                        "source_agent": "OpportunityClerkAgent",
-                    }
-                )
-            for key in ("package", "brief", "outreach", "qa"):
-                if state.get(key):
-                    db.add_artifact(oid, key, state[key])
-                    payload[key] = state[key]
-            if state.get("run_id"):
-                payload["last_run_id"] = state["run_id"]
-            payload.pop("status", None)
-            row = db.upsert_opportunity(oid, payload)
-            state["opportunity_id"] = oid
-            state["opportunity"] = row
-            state["clerk"] = {"ok": True, "id": oid}
-            ping(state, self.name, "tool", f"Upserted {oid}.", artifact_ref=oid)
+        """Idempotent upsert of pipeline records."""
+        payload = state["payload"]
+        record_kind = classify_kind(payload)
+        state["record_kind"] = record_kind
+
+        if record_kind == "opportunity":
+            stored = await db.upsert_opportunity(payload)
+            state["id"] = stored["id"]
+            state["stored"] = stored
+        else:
+            opportunity_id = payload.get("opportunity_id")
+            artifact_id = await db.save_artifact(opportunity_id, record_kind, payload)
+            state["id"] = opportunity_id
+            state["artifact_id"] = artifact_id
+            state["stored"] = payload
         return state
