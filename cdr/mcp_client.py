@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
+from cdr import agui_map
 from shared.rag import retrieve as rag_retrieve
 
 load_dotenv()
@@ -22,6 +23,10 @@ OUTBOX = Path(__file__).resolve().parents[1] / "demo" / "outbox" / "cdr"
 
 async def mcp_call(name: str, arguments: dict[str, Any] | None = None) -> Any:
     payload = {"name": name, "arguments": arguments or {}}
+    # Every MCP call funnels through here, so this is where the board's
+    # "MCP tool calls" panel gets fed. run_id comes from the contextvar set in
+    # service.execute_run - callers on this path do not carry graph state.
+    _report(name, arguments or {}, server="mcp:8085")
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             r = await client.post(f"{MCP_URL}/mcp/call", json=payload)
@@ -31,7 +36,16 @@ async def mcp_call(name: str, arguments: dict[str, Any] | None = None) -> Any:
                 return data["result"]
     except Exception:
         pass
+    _report(name, arguments or {}, server="fallback")
     return await _fallback(name, arguments or {})
+
+
+def _report(name: str, arguments: dict[str, Any], server: str) -> None:
+    from cdr.runtime import current_run, emit_agui
+
+    run_id = current_run()
+    if run_id:
+        emit_agui(run_id, agui_map.mcp_call(name, arguments, server=server, run_id=run_id))
 
 
 async def _fallback(name: str, arguments: dict[str, Any]) -> Any:

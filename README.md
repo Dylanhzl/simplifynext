@@ -77,10 +77,30 @@ No component changes. The browser receives the same AG-UI event stream either
 way; only the source changes. If the CDR agent does not answer, the run falls
 back to fixtures and says so on screen instead of dying mid-demo.
 
+**`USE_FIXTURES` means two different things, so set it per process:**
+
+| Process | `USE_FIXTURES=1` (default) | `USE_FIXTURES=0` |
+|---|---|---|
+| `ui_client/server.py` | Replay `demo/fixtures/*.jsonl` | Proxy the live CDR at `CDR_AGUI_URL` |
+| `cdr`, `opportunity_finder`, `mcp` | Agents return canned `shared/fixtures` output — real graph, no model calls | Real Groq inference (needs `GROQ_API_KEY`) |
+
+So the UI can be live against a CDR whose agents are still on canned output —
+that is the fast, keyless path, and it exercises the whole graph and event
+stream. For a genuinely end-to-end run, set it to `0` on both:
+
+```bash
+USE_FIXTURES=0 python -m uvicorn cdr.app:app --port 8084   # real Groq calls
+USE_FIXTURES=0 python3 ui_client/server.py                 # proxy, not replay
+```
+
+A full three-opportunity live campaign takes roughly 3-5 minutes on Groq,
+against about half a second on canned output.
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `USE_FIXTURES` | `1` | `0` proxies the live CDR agent |
 | `CDR_AGUI_URL` | `http://localhost:8084/ag-ui` | Live AG-UI endpoint |
+| `LIVE_TIMEOUT` | `300` | Seconds to wait on the live stream before falling back |
 | `DEMO_SPEED` | `1.0` | Replay pacing. `0.6` matches the demo cue sheet |
 | `PAUSE_BEFORE_SEND` | `0` | Optional HITL toggle. Off by design |
 | `UI_PORT` | `8000` | Board port |

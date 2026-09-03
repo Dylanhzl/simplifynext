@@ -4,8 +4,17 @@ import json
 import os
 from pathlib import Path
 
+from cdr import agui_map
 from cdr.graph import run_campaign
-from cdr.runtime import emit_agui, finish, get_run, new_run
+from cdr.runtime import (
+    emit_agui,
+    emit_custom,
+    emit_error,
+    finish,
+    get_run,
+    new_run,
+    set_current_run,
+)
 from uuid import uuid4
 
 PROFILE = Path(__file__).resolve().parents[1] / "demo" / "maya" / "profile.json"
@@ -33,8 +42,8 @@ def opportunities_from(body: dict) -> list:
     return []
 
 
-def start_run(body: dict) -> str:
-    run_id = str(uuid4())[:8]
+def start_run(body: dict, run_id: str | None = None) -> str:
+    run_id = run_id or str(uuid4())[:8]
     profile = profile_from(body)
     opps = opportunities_from(body)
     new_run(run_id, str(profile.get("id", "maya")), [o.get("id", "") for o in opps if isinstance(o, dict)])
@@ -42,9 +51,13 @@ def start_run(body: dict) -> str:
 
 
 async def execute_run(run_id: str, body: dict) -> None:
+    set_current_run(run_id)
     profile = profile_from(body)
     opps = opportunities_from(body)
-    emit_agui(run_id, {"type": "RUN_STARTED", "runId": run_id})
+    emit_agui(run_id, {"type": "RUN_STARTED", "runId": run_id,
+                       "threadId": body.get("threadId") or "maya"})
+    if opps:
+        emit_custom(run_id, "opportunities", agui_map.opportunities(opps, run_id)["value"])
     state = {
         "run_id": run_id,
         "profile": profile,
@@ -68,4 +81,7 @@ async def execute_run(run_id: str, body: dict) -> None:
         rec = get_run(run_id) or {}
         rec["status"] = "error"
         rec["error"] = str(exc)
+        # Say so on the board, then close the stream - a silent hang is worse
+        # than a visible failure mid-demo.
+        emit_error(run_id, str(exc))
         finish(run_id, {"error": str(exc)})

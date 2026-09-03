@@ -12,13 +12,26 @@ def retrieve(query: str, k: int = 4) -> list[dict[str, Any]]:
 
     if not CORPUS.exists():
         return []
-    docs = json.loads(CORPUS.read_text())
+    data = json.loads(CORPUS.read_text())
+    # The corpus file is {corpus_id, description, documents[]}; iterating the
+    # object itself yielded its keys (strings) and blew up on doc.get().
+    docs = data.get("documents", []) if isinstance(data, dict) else data
+    docs = [d for d in docs if isinstance(d, dict)]
+
     # scaffold: keyword overlap. Replace with embeddings.
     q = query.lower()
     scored = []
     for doc in docs:
-        text = (doc.get("text") or "").lower()
-        score = sum(1 for w in q.split() if w in text)
+        score = sum(1 for w in q.split() if w in _searchable(doc))
         scored.append((score, doc))
     scored.sort(key=lambda x: x[0], reverse=True)
     return [d for s, d in scored[:k] if s > 0] or [d for _, d in scored[:k]]
+
+
+# Documents carry title/notes, not a single `text` blob - scoring against a
+# field that does not exist scored every document zero.
+_FIELDS = ("text", "title", "notes", "insight", "summary", "type", "platform")
+
+
+def _searchable(doc: dict[str, Any]) -> str:
+    return " ".join(str(doc.get(f, "")) for f in _FIELDS).lower()

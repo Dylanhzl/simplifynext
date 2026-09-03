@@ -3,13 +3,29 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 from typing import Any
 
+from cdr import agui_map
 from shared.events import make_run_event
 from shared.schemas import PatternKind, RunEvent, RunState
 
 RUNS: dict[str, dict[str, Any]] = {}
 _queues: dict[str, asyncio.Queue] = {}
+
+# Set once per run in service.execute_run. Lets code far from the graph state -
+# mcp_client, mostly - report to the right stream without threading run_id
+# through every signature. asyncio.gather copies the context, so the parallel
+# research fan-out inherits it.
+_current_run: contextvars.ContextVar[str] = contextvars.ContextVar("cdr_run_id", default="")
+
+
+def set_current_run(run_id: str) -> None:
+    _current_run.set(run_id)
+
+
+def current_run() -> str:
+    return _current_run.get()
 
 
 def new_run(run_id: str, profile_id: str, opportunity_ids: list[str]) -> dict[str, Any]:
@@ -63,6 +79,22 @@ def emit_agui(run_id: str, event: dict[str, Any]) -> None:
         q.put_nowait({"sse": None, "agui": event})
 
 
+def emit_custom(run_id: str, name: str, value: dict[str, Any]) -> None:
+    """A board-panel event (agent_trace, mcp_call, opportunities, pipeline, ...)."""
+    emit_agui(run_id or current_run(), agui_map.custom(name, value, run_id or current_run()))
+
+
+def emit_tool_call(run_id: str, name: str, args: dict[str, Any]) -> None:
+    """One generative-UI card, as TOOL_CALL_START / _ARGS / _END."""
+    rid = run_id or current_run()
+    for frame in agui_map.tool_call(name, args, rid):
+        emit_agui(rid, frame)
+
+
+def emit_error(run_id: str, message: str) -> None:
+    emit_agui(run_id, {"type": "RUN_ERROR", "runId": run_id, "message": message})
+
+
 def finish(run_id: str, extra: dict[str, Any] | None = None) -> None:
     rec = RUNS.setdefault(run_id, {"run_id": run_id})
     rec["status"] = "done"
@@ -93,12 +125,15 @@ def as_run_state(run_id: str) -> RunState:
 
 
 def _to_agui(ev: RunEvent) -> dict[str, Any]:
-    return {
-        "type": "STEP_FINISHED" if ev.status in ("ok", "fail", "awaiting_send") else "STEP_STARTED",
-        "stepName": ev.agent,
-        "pattern": ev.pattern.value,
-        "status": ev.status,
-        "summary": ev.summary,
-        "artifactRef": ev.artifact_ref,
-        "runId": ev.run_id,
-    }
+    """Trace rows go on the wire as CUSTOM/agent_trace - what the board renders.
+
+    This used to emit STEP_FINISHED, which no client has ever handled; a live
+    run drew an empty board. See cdr/agui_map.py for the contract.
+    """
+    return agui_map.agent_trace(
+        agent=ev.agent,
+        pattern=ev.pattern.value,
+        summary=ev.summary,
+        status=ev.status,
+        run_id=ev.run_id,
+    )
