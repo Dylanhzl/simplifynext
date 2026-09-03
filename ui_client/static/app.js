@@ -61,14 +61,19 @@
     indicator.style.transform = `translateX(${tabBox.left - navBox.left}px)`;
   }
 
-  function goToTab(name) {
+  function goToTab(name, { focus = false } = {}) {
     const tabBtn = document.querySelector(`.tab[data-tab="${name}"]`);
     if (!tabBtn) return;
     document.querySelectorAll(".tab").forEach((b) => {
       const active = b === tabBtn;
       b.classList.toggle("active", active);
       b.setAttribute("aria-selected", active ? "true" : "false");
+      // Roving tabindex: one Tab press enters the tablist, then arrows move
+      // between tabs. Without this every tab is its own tab stop, which is
+      // the behaviour the ARIA tabs pattern explicitly replaces.
+      b.tabIndex = active ? 0 : -1;
     });
+    if (focus) tabBtn.focus();
     document.querySelectorAll(".tabpanel").forEach((p) => {
       const active = p.dataset.tab === name;
       p.classList.toggle("active", active);
@@ -85,6 +90,24 @@
   document.querySelectorAll(".tab").forEach((b) =>
     b.addEventListener("click", () => goToTab(b.dataset.tab))
   );
+
+  // Arrow / Home / End across the tabs. The markup declared role="tablist"
+  // from the start but nothing implemented the keyboard half of that contract,
+  // so the tabs announced themselves as tabs and then behaved like links.
+  document.getElementById("tabs")?.addEventListener("keydown", (e) => {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const tabs = [...document.querySelectorAll(".tab")];
+    const i = tabs.findIndex((t) => t.classList.contains("active"));
+    if (i < 0) return;
+    e.preventDefault();
+    const next =
+      e.key === "Home" ? 0
+      : e.key === "End" ? tabs.length - 1
+      : e.key === "ArrowRight" ? (i + 1) % tabs.length
+      : (i - 1 + tabs.length) % tabs.length;
+    goToTab(tabs[next].dataset.tab, { focus: true });
+  });
   document.querySelectorAll(".kpi-tile").forEach((b) =>
     b.addEventListener("click", () => goToTab(b.dataset.goto))
   );
