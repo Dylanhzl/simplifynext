@@ -264,7 +264,12 @@ class Handler(BaseHTTPRequestHandler):
         route = urlparse(self.path)
         path = route.path
 
-        if path in ("/", "/index.html"):
+        # The landing page is the front door; the board is the app behind it.
+        # /index.html still resolves to the board so any bookmark or deep link
+        # from before the landing page existed keeps working.
+        if path in ("/", "/landing.html"):
+            return self._file(STATIC / "landing.html")
+        if path in ("/board", "/board/", "/index.html"):
             return self._file(STATIC / "index.html")
         if path == "/api/healthz":
             return self._json({"ok": True, "mode": "fixture" if USE_FIXTURES else "live"})

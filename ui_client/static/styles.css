@@ -102,7 +102,12 @@ body > *{position:relative; z-index:1}
   backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
   border-bottom:1px solid var(--line);
 }
-.brand{display:flex; align-items:center; gap:12px; position:relative}
+/* The brand is an <a> back to the landing page, so it has to shed the
+   default link colour and underline without looking clickable-by-accident. */
+.brand{display:flex; align-items:center; gap:12px; position:relative;
+  color:inherit; text-decoration:none; border-radius:var(--radius-sm);
+  transition:opacity .18s var(--ease-out)}
+.brand:hover{opacity:.78}
 .brand::before{
   content:""; position:absolute; left:-16px; top:50%; translate:0 -50%;
   width:60px; height:60px; border-radius:50%;
