@@ -1,26 +1,35 @@
 :root{
-  --bg:#0c0a10; --panel:#17141d; --panel-2:#1e1a26; --panel-3:#251f2e;
-  /* Dividers were #2d2738 at 1.26:1 on --panel - technically present, visually
-     absent, so panels bled into each other. Lifted until the edges actually
-     read; --line-strong is for edges that carry structure (panel outlines). */
-  --line:#3a3348; --line-strong:#4a4159;
-  /* --ink-3 was #786d8e: 4.10:1 on --bg and 3.33:1 on --panel-3, so every
-     hint, KPI label and empty state failed WCAG AA (4.5:1). Same hue (260deg)
-     and saturation as before, lightness raised until the worst surface clears:
-     bg 5.57, panel 5.15, panel-2 4.83, panel-3 4.52. */
-  --ink:#f5f2fa; --ink-2:#b3a8c9; --ink-3:#8d84a0;
+  /* ==================== KITCHEN TERRACOTTA ====================
+     A warm, light, kitchen-side palette: clay ground, cream surfaces,
+     terracotta accent, olive and mustard support.
 
-  /* brand identity: violet -> pink -> orange. distinct from the semantic
-     colors below on purpose, so "this is CreatorLoop" never reads as
-     "this is a warning". */
-  --accent:#a855f7; --accent-2:#ec4899; --warm:#fb923c;
+     Every text token below is SOLVED, not picked. Text only ever sits on
+     --panel / --panel-2 / --bg, and each colour was walked down in lightness
+     (hue and saturation held) until it cleared 4.5:1 on all three:
+
+       --ink     14.23 / 12.94 / 12.38     --accent    5.19 / 4.72 / 4.51
+       --ink-2    5.58 /  5.08 /  4.86     --ok        5.20 / 4.73 / 4.52
+       --ink-3    5.18 /  4.71 /  4.50     --warn      5.21 / 4.74 / 4.53
+                                           --fail      5.18 / 4.71 / 4.51
+     --panel-3 is chrome only (chips, recesses) - never body text. */
+  --bg:#ece3d6; --panel:#f8f3ea; --panel-2:#f0e8dc; --panel-3:#e6dac8;
+  --line:#dccbb2; --line-strong:#c2ab8a;
+  --ink:#2b211a; --ink-2:#6d5f50; --ink-3:#726455;
+
+  /* brand: terracotta -> deep clay, with olive and mustard as the
+     supporting warm neutrals. Kept distinct from the semantics below so
+     "this is CreatorLoop" never reads as "this is a warning". */
+  --accent:#a44c34; --accent-2:#7d3722; --warm:#875e19; --olive:#5e6b41;
   --gradient-brand:linear-gradient(135deg,var(--accent),var(--accent-2));
-  --gradient-warm:linear-gradient(135deg,var(--warm),var(--accent-2));
+  --gradient-warm:linear-gradient(135deg,var(--warm),var(--accent));
 
-  /* semantic: kept clean and unambiguous */
-  --ok:#22c55e; --warn:#f59e0b; --fail:#ef4444; --info:#38bdf8;
+  /* semantic: pulled toward the earth palette so nothing reads as neon */
+  --ok:#497035; --warn:#875e19; --fail:#ba372a; --info:#3a6b7a;
 
-  --radius:12px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  /* rounder than the old board - the direction is organic, not rectangular */
+  --radius:18px; --radius-sm:14px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --display:"Bricolage Grotesque","Trebuchet MS",Helvetica,sans-serif;
   /* strong custom easings - the built-in CSS ones are too weak to feel intentional */
   --ease-out:cubic-bezier(.23,1,.32,1);
   --ease-in-out:cubic-bezier(.77,0,.175,1);
@@ -43,7 +52,7 @@ html,body{height:100%}
   border-radius:4px;
 }
 .kpi-tile:focus-visible,.tab:focus-visible,button.run:focus-visible,button.stop:focus-visible{
-  outline-color:#fff;
+  outline-color:var(--accent-2);
   box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 /* The campaign bar and tabs are sticky, so a focused control further down
@@ -51,10 +60,39 @@ html,body{height:100%}
    into view (WCAG 2.2 "focus not obscured"). */
 html{scroll-padding-top:150px}
 body{
-  margin:0; background:var(--bg); color:var(--ink);
-  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+  margin:0; color:var(--ink);
+  font:14px/1.55 "Work Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;
   display:flex; flex-direction:column;
+  /* ---------------- background, layer 1: clay blooms ----------------
+     Three soft washes in the brand hues, fixed so they sit still while the
+     board scrolls. Low alpha on purpose: the palette above is solved against
+     the flat --bg, and a heavy wash would eat that margin. */
+  background:
+    radial-gradient(circle at 12% -8%, rgba(164,76,52,.20), transparent 46%),
+    radial-gradient(circle at 96% 34%, rgba(94,107,65,.17), transparent 44%),
+    radial-gradient(circle at 62% 104%, rgba(135,94,25,.15), transparent 46%),
+    var(--bg);
+  background-attachment:fixed;
 }
+/* layer 2: paper grain, so the large flat washes never band */
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.30;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/></filter><rect width='150' height='150' filter='url(%23g)'/></svg>");
+}
+/* layer 3: the kitchen itself - noodle swirl, star anise, chilli, drawn as
+   line art rather than illustration so they stay quiet behind content. */
+body::after{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.17;
+  background-repeat:no-repeat;
+  background-position:calc(100% - 56px) 96px, 62px calc(100% - 104px), 46% 18px;
+  background-size:330px 275px, 132px 132px, 106px 106px;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 300'><g fill='none' stroke='%237d3722' stroke-width='2.4' stroke-linecap='round'><path d='M30 210c40-70 90-110 150-110s110 40 150 110'/><path d='M55 220c34-58 78-94 125-94s91 36 125 94'/><path d='M80 232c28-46 64-78 100-78s72 32 100 78'/><path d='M112 244c20-34 44-58 68-58s48 24 68 58'/></g></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%235e6b41' stroke-width='2.4' stroke-linecap='round'><circle cx='50' cy='50' r='12'/><path d='M50 38V8M50 62v30M38 50H8M62 50h30M41 41 20 20M59 41l21-21M41 59 20 80M59 59l21 21'/></g></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23a44c34' stroke-width='2.6' stroke-linecap='round'><path d='M32 22c14 4 20 16 20 30s-8 26-20 30'/><path d='M32 22c-6-8-2-14 6-14'/></g></svg>");
+}
+/* everything real sits above the three background layers */
+body > *{position:relative; z-index:1}
 
 /* ---------------- campaign bar ---------------- */
 .campaign-bar{
@@ -80,7 +118,7 @@ body{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .brand h1{
-  margin:0; font-size:19px; font-weight:800; letter-spacing:-.03em;
+  margin:0; font-family:var(--display); font-size:20px; font-weight:800; letter-spacing:-.03em;
   background:var(--gradient-brand);
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
@@ -94,17 +132,17 @@ body{
 .field-caption{font:inherit; color:inherit}
 .campaign-fields input{
   background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
-  border-radius:8px; padding:8px 11px; font-size:13px; min-width:210px; font-family:inherit;
+  border-radius:10px; padding:9px 12px; font-size:13px; min-width:210px; font-family:inherit;
   transition:border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
 }
 .campaign-fields input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)}
 .profile-chip{
   display:flex; align-items:center; gap:8px; background:var(--panel-2);
-  border:1px solid var(--line); border-radius:8px; padding:5px 12px 5px 6px; height:36px;
+  border:1px solid var(--line); border-radius:999px; padding:5px 14px 5px 6px; height:38px;
 }
 .avatar{
   width:25px;height:25px;border-radius:50%; display:grid;place-items:center;
-  background:var(--gradient-brand); color:#0c0a10;
+  background:var(--gradient-brand); color:#fdf9f2;
   font-weight:700; font-size:12px;
 }
 .profile-chip span span, .profile-chip>span:last-child{display:flex;flex-direction:column;line-height:1.2}
@@ -124,8 +162,8 @@ body{
 
 button.run{
   background:var(--gradient-brand); color:#fff;
-  border:0; border-radius:9px; padding:11px 22px; font-size:14px; font-weight:700;
-  cursor:pointer; box-shadow:0 4px 20px color-mix(in srgb, var(--accent-2) 40%, transparent);
+  border:0; border-radius:999px; padding:12px 26px; font-size:14px; font-weight:600;
+  cursor:pointer; box-shadow:0 6px 18px -4px color-mix(in srgb, var(--accent) 50%, transparent);
   transition:transform 140ms var(--ease-out), filter 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
 }
 button.run:hover:not(:disabled){filter:brightness(1.08)}
@@ -133,7 +171,7 @@ button.run:active:not(:disabled){transform:scale(.97); box-shadow:0 2px 10px col
 button.run:disabled{opacity:.5; cursor:default; box-shadow:none}
 button.stop{
   background:transparent; color:var(--ink-2); border:1px solid var(--line);
-  border-radius:9px; padding:10px 14px; font-size:13px; cursor:pointer;
+  border-radius:999px; padding:10px 18px; font-size:13px; cursor:pointer;
   transition:transform 140ms var(--ease-out), color 140ms, border-color 140ms;
 }
 button.stop:not(:disabled):hover{color:var(--fail); border-color:color-mix(in srgb, var(--fail) 40%, transparent)}
@@ -169,7 +207,7 @@ button.stop:disabled{opacity:.35; cursor:default}
   .kpi-tile:hover{
     border-color:color-mix(in srgb, var(--accent) 45%, var(--line));
     background:var(--panel-2);
-    box-shadow:0 8px 24px rgba(0,0,0,.3); transform:translateY(-2px);
+    box-shadow:0 10px 22px -8px rgba(74,48,26,.22); transform:translateY(-2px);
   }
 }
 .kpi-tile:active{transform:translateY(-2px) scale(.98)}
@@ -177,7 +215,7 @@ button.stop:disabled{opacity:.35; cursor:default}
 .kpi-icon{font-size:14px; color:var(--accent); opacity:.9}
 .kpi-num{display:flex; align-items:baseline; gap:2px}
 .kpi-value{
-  font-size:clamp(1.6rem,2.2vw,2.1rem); font-weight:800; letter-spacing:-.02em;
+  font-family:var(--display); font-size:clamp(1.6rem,2.2vw,2.1rem); font-weight:800; letter-spacing:-.03em;
   font-variant-numeric:tabular-nums; line-height:1.1; color:var(--ink);
   transition:color 200ms var(--ease-out);
 }
@@ -191,12 +229,12 @@ button.stop:disabled{opacity:.35; cursor:default}
 .tabs{
   position:relative; display:inline-flex; gap:2px;
   margin:20px 24px 18px; padding:5px;
-  background:color-mix(in srgb, var(--panel) 55%, transparent);
+  background:color-mix(in srgb, var(--panel) 72%, transparent);
   backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%);
-  border:1px solid rgba(255,255,255,.09);
-  border-top-color:rgba(255,255,255,.16); /* bright top edge = light catching the material */
+  border:1px solid var(--line);
+  border-top-color:#fdf9f2; /* bright top edge = light catching the material */
   border-radius:999px;
-  box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 14px 32px -10px rgba(0,0,0,.5);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 12px 26px -12px rgba(74,48,26,.30);
 }
 .tab{
   position:relative; z-index:1; background:none; border:0; cursor:pointer;
@@ -239,7 +277,7 @@ button.stop:disabled{opacity:.35; cursor:default}
 }
 .panel.grow{display:flex; flex-direction:column; flex:1; min-height:0}
 .panel h2{
-  margin:0 0 3px; font-size:14px; font-weight:700; letter-spacing:-.01em;
+  margin:0 0 3px; font-family:var(--display); font-size:15px; font-weight:600; letter-spacing:-.015em;
   color:var(--ink); display:flex; align-items:center; gap:8px;
 }
 .count{
@@ -257,12 +295,12 @@ button.stop:disabled{opacity:.35; cursor:default}
 }
 .overview-grid .span-2{grid-column:1/-1}
 .ov-list{display:flex; flex-direction:column; gap:9px}
-.ov-item{display:flex; gap:11px; align-items:flex-start; padding:11px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line)}
+.ov-item{display:flex; gap:11px; align-items:flex-start; padding:12px; border-radius:var(--radius-sm); background:var(--panel-2); border:1px solid var(--line)}
 .ov-item-body{min-width:0}
 .ov-item-body b{display:block; font-size:12.5px; color:var(--ink); margin-bottom:3px}
 .ov-item-body p{margin:0; font-size:11.5px; color:var(--ink-2); line-height:1.5}
 .ov-content{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
-.ov-content-item{margin-bottom:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px}
+.ov-content-item{margin-bottom:0; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:13px}
 .ov-content-item .media-meta b{display:block; font-size:12px; color:var(--ink); margin-bottom:4px}
 .ov-content-item .media-meta p{margin:0; font-size:11.5px; color:var(--ink-2); line-height:1.45}
 
@@ -360,7 +398,7 @@ button.stop:disabled{opacity:.35; cursor:default}
 /* ---------------- kanban ---------------- */
 .kanban{display:grid; grid-auto-flow:column; grid-auto-columns:minmax(190px,1fr); gap:12px; overflow-x:auto; padding-bottom:4px}
 .kcol{
-  background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:13px;
   min-height:120px; max-height:440px; display:flex; flex-direction:column; min-width:0;
 }
 .kcol h3{
@@ -458,8 +496,8 @@ button.stop:disabled{opacity:.35; cursor:default}
 .empty-art p{margin:0; font-size:12.5px; max-width:230px}
 
 .verdict-pill{font:700 11px/1 var(--mono); text-transform:uppercase; padding:5px 9px; border-radius:6px}
-.verdict-pill.fail{background:var(--fail); color:#1a0a0a}
-.verdict-pill.pass{background:var(--ok); color:#08170c}
+.verdict-pill.fail{background:var(--fail); color:#fdf9f2}
+.verdict-pill.pass{background:var(--ok); color:#fdf9f2}
 .hookbox{background:var(--panel-2); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:8px; padding:10px; font-size:12.5px; line-height:1.5}
 .hookbox.old{border-left-color:var(--fail); color:var(--ink-3)}
 .beats{list-style:none; padding:0; margin:0; font-size:11.5px}
@@ -509,7 +547,7 @@ button.stop:disabled{opacity:.35; cursor:default}
   display:grid; place-items:center;
   background:var(--frame-bg,linear-gradient(155deg,var(--accent) -20%,var(--panel-2) 65%));
 }
-.media-frame.tiktok{--frame-bg:linear-gradient(155deg,#1f1730,var(--info) 140%)}
+.media-frame.tiktok{--frame-bg:linear-gradient(155deg,#2f5560,var(--info) 140%)}
 .media-frame.instagram{--frame-bg:linear-gradient(155deg,var(--accent-2) -30%,var(--warm) 140%)}
 .media-frame .play{
   width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
