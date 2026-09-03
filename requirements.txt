@@ -6,6 +6,9 @@ python-dotenv>=1.0.1
 langgraph>=0.2.0
 langchain-core>=0.3.0
 langchain-groq>=0.2.0
+# Claude on Amazon Bedrock (LLM_PROVIDER=bedrock). The bedrock extra pulls the
+# boto3/botocore needed to sign requests with the sandbox's temporary keys.
+anthropic[bedrock]>=0.125.0
 sse-starlette>=2.1.0
 aiosqlite>=0.20.0
 tzdata>=2024.1

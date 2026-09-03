@@ -96,6 +96,54 @@ USE_FIXTURES=0 python3 ui_client/server.py                 # proxy, not replay
 A full three-opportunity live campaign takes roughly 3-5 minutes on Groq,
 against about half a second on canned output.
 
+### Running on AWS Bedrock
+
+`LLM_PROVIDER` picks the backend for every named agent. No agent code changes.
+
+```bash
+LLM_PROVIDER=groq      # default: fast, free, what the demo runs on
+LLM_PROVIDER=bedrock   # Claude on Bedrock, billed to the sandbox lease
+```
+
+To use Bedrock, fill these in `.env` (they ship as `PASTE_..._HERE`
+placeholders, which the code treats as unset):
+
+```bash
+LLM_PROVIDER=bedrock
+AWS_REGION=us-east-1              # Bedrock's region, NOT the portal's ap-southeast-1
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_SESSION_TOKEN=...             # required - sandbox credentials are temporary
+BEDROCK_MODEL_ID=anthropic.claude-haiku-4-5
+```
+
+Get all three values from **AWS access portal → Accounts → expand your account
+→ Access keys → Option 1**. They **expire every 12 hours**, so re-copy them
+before a session.
+
+Check what is actually running — this reports the effective configuration, not
+what you asked for:
+
+```bash
+curl -s localhost:8084/health
+# {"runtime":"bedrock","provider":"bedrock","model_id":"anthropic.claude-haiku-4-5",
+#  "region":"us-east-1","credentials":"ok", ... }
+```
+
+`runtime` is `fixtures` whenever `USE_FIXTURES=1` **or** credentials are
+missing, because that is what the agents will really do.
+
+> **Budget.** The lease is capped at **US$20** (access revoked there, account
+> terminated at $30) and there is one lease per team, no second chances. A full
+> campaign is 60-80 model calls — cents on Haiku. What actually burns the cap is
+> always-on infrastructure, so keep running the stack locally and use Bedrock
+> for inference only. Watch the budget bar in the Innovation Sandbox portal; it
+> lags by a few hours.
+>
+> **AgentCore Memory is not implemented.** `harness/agentcore.py`'s `put_memory`
+> is a no-op. Memory is SQLite in Pipeline Manager plus `memory.json`. Do not
+> describe it as working.
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `USE_FIXTURES` | `1` | `0` proxies the live CDR agent |
