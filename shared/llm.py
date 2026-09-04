@@ -318,12 +318,29 @@ async def chat_model(
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 2048,
+    agent: str = "",
 ) -> T:
     """JSON-mode completion validated into a pydantic model from shared.schemas.
 
     The model sees the real JSON schema, so field names always match the
     frozen contract. Retries feed validation errors back to the model.
+
+    Honours USE_FIXTURES, which it previously did not. Every Opportunity Finder
+    agent calls this, so with the flag on they still made live inference calls:
+    "fixture mode" burned real quota, and the resulting rate limiting made the
+    finder progressively slower and intermittently empty. Pass `agent` so the
+    fixture lookup can find the right canned payload.
     """
+    if use_fixtures():
+        data = fixture_json(agent, user)
+        try:
+            return schema.model_validate(data)
+        except ValidationError as exc:
+            raise LLMError(
+                f"USE_FIXTURES=1 but the fixture for {agent or 'this agent'} does "
+                f"not match {schema.__name__}: {exc}. Add one in shared/fixtures.py."
+            ) from exc
+
     contract = json.dumps(schema.model_json_schema(), indent=2)
     system = f"{system}\n\nMatch this JSON schema exactly:\n{contract}"
     last: Exception | None = None
@@ -347,22 +364,28 @@ async def chat_model(
 
 
 async def complete_json(system: str, user: str, *, agent: str = "") -> dict[str, Any]:
-    """Fixture-first JSON completion. Original signature, hardened internals.
+    """JSON completion. Live by default; fixtures only when explicitly asked.
 
-    Behaviour matches the earlier implementation -- fixtures when USE_FIXTURES=1
-    or the selected provider has no credentials -- but live calls now route
-    through `chat_json`, so they retry through rate limits instead of raising.
+    This used to fall back to `fixture_json` whenever the provider had no
+    credentials or a call failed, so a broken key produced a confident campaign
+    built from Maya's canned answers. With real accounts that is a creator in
+    Lisbon being shown Singapore laksa opportunities and told they are results.
 
-    Falls back to the agent's fixture if the model is unreachable, so a rate
-    limit can never take a service down mid-demo.
+    Fixtures now require USE_FIXTURES=1, which the test suite sets. Otherwise a
+    missing key or an unreachable model raises, the run reports the failure on
+    the trace, and nobody is handed someone else's content as their own.
     """
-    if use_fixtures() or not available():
+    if use_fixtures():
         return fixture_json(agent, user)
 
-    try:
-        return await chat_json(system, user)
-    except LLMError:
-        return fixture_json(agent, user)
+    if not available():
+        raise LLMError(
+            f"{provider()} has no usable credentials, so {agent or 'this agent'} "
+            "cannot run. Set the provider's API key, or set USE_FIXTURES=1 to "
+            "run against canned demo data."
+        )
+
+    return await chat_json(system, user)
 
 
 __all__ = [

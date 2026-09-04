@@ -19,9 +19,11 @@ async def find_opportunities(state: dict[str, Any]) -> dict[str, Any]:
     profile = state.get("profile") or {}
     data = await mcp_find(
         {
-            "profile_id": profile.get("id", "maya"),
-            "niche": profile.get("niche", "singapore hawker food"),
-            "city": profile.get("city", "Singapore"),
+            # No demo-persona defaults: searching Singapore hawker food for a
+            # creator who never said either is a confident wrong answer.
+            "profile_id": profile.get("id", ""),
+            "niche": profile.get("niche", ""),
+            "city": profile.get("city", ""),
             "limit": 8,
             "profile": profile,
         }
@@ -64,10 +66,16 @@ async def draft_outreach(state: dict[str, Any]) -> dict[str, Any]:
 async def persist_and_schedule(state: dict[str, Any]) -> dict[str, Any]:
     run_id = str(state.get("run_id", ""))
     emit(run_id, "CDRRootAgent", "tool", "persist_and_schedule → MCP/P3")
-    opportunity_id = (state.get("current") or {}).get("id")
+    current = state.get("current") or {}
+    opportunity_id = current.get("id")
     payload = {
         "run_id": state.get("run_id"),
         "opportunity_id": opportunity_id,
+        # The opportunity record itself, not just its id. Without this the
+        # clerk had nothing to upsert -- it classified the bundle as "unknown"
+        # and filed it as an artifact, so the board's opportunity table and
+        # kanban stayed empty for every real run.
+        "opportunity": {**current, "status": "outreached"} if current else None,
         "package": state.get("package"),
         "outreach": state.get("outreach"),
         "qa": state.get("qa"),

@@ -6,12 +6,16 @@ import asyncio
 import contextvars
 from typing import Any
 
-from cdr import agui_map
+from cdr import agui_map, run_store
 from shared.events import make_run_event
 from shared.schemas import PatternKind, RunEvent, RunState
 
 RUNS: dict[str, dict[str, Any]] = {}
 _queues: dict[str, asyncio.Queue] = {}
+
+# Run ids the human asked to stop. The Stop button never gates the agents; it
+# ends the run early.
+_cancelled: set[str] = set()
 
 # Set once per run in service.execute_run. Lets code far from the graph state -
 # mcp_client, mostly - report to the right stream without threading run_id
@@ -50,6 +54,18 @@ def get_run(run_id: str) -> dict[str, Any] | None:
     return RUNS.get(run_id)
 
 
+def cancel(run_id: str) -> None:
+    _cancelled.add(run_id)
+
+
+def cancelled(run_id: str) -> bool:
+    return run_id in _cancelled
+
+
+def clear_cancel(run_id: str) -> None:
+    _cancelled.discard(run_id)
+
+
 def emit(
     run_id: str,
     agent: str,
@@ -61,13 +77,18 @@ def emit(
     pk = pattern if isinstance(pattern, PatternKind) else PatternKind(pattern)
     ev = make_run_event(run_id, agent, pk, summary, status=status, artifact_ref=artifact_ref)
     rec = RUNS.setdefault(run_id, {"run_id": run_id, "events": [], "agui": []})
-    rec.setdefault("events", []).append(ev.model_dump(mode="json"))
+    payload = ev.model_dump(mode="json")
+    rec.setdefault("events", []).append(payload)
     rec["current_agent"] = agent
     agui = _to_agui(ev)
     rec.setdefault("agui", []).append(agui)
     q = _queues.get(run_id)
     if q is not None:
-        q.put_nowait({"sse": ev.model_dump(mode="json"), "agui": agui})
+        q.put_nowait({"sse": payload, "agui": agui})
+    # Write-through to Postgres. Queued, never awaited - the stream must not
+    # wait on the database.
+    run_store.enqueue_event(run_id, payload)
+    run_store.enqueue_agui(run_id, agui)
     return ev
 
 
@@ -77,6 +98,7 @@ def emit_agui(run_id: str, event: dict[str, Any]) -> None:
     q = _queues.get(run_id)
     if q is not None:
         q.put_nowait({"sse": None, "agui": event})
+    run_store.enqueue_agui(run_id, event)
 
 
 def emit_custom(run_id: str, name: str, value: dict[str, Any]) -> None:
@@ -104,6 +126,18 @@ def finish(run_id: str, extra: dict[str, Any] | None = None) -> None:
     q = _queues.get(run_id)
     if q is not None:
         q.put_nowait(None)
+    clear_cancel(run_id)
+    # Stamp the run row and drain the write queue. Fire-and-forget so finish()
+    # keeps its synchronous signature for the many call sites that use it.
+    error = (extra or {}).get("error")
+    asyncio.create_task(
+        run_store.finish_run(
+            run_id,
+            status="error" if error else "done",
+            result={k: rec.get(k, []) for k in ("packages", "outreach", "qa")},
+            error=error,
+        )
+    )
 
 
 def queue(run_id: str) -> asyncio.Queue:

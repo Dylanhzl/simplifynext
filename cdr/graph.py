@@ -26,9 +26,11 @@ async def load_opportunities(state: dict[str, Any]) -> dict[str, Any]:
     profile = state.get("profile") or {}
     data = await find_opportunities(
         {
-            "profile_id": profile.get("id", "maya"),
-            "niche": profile.get("niche", "singapore hawker food"),
-            "city": profile.get("city", "Singapore"),
+            # No persona defaults. A run that lost its creator must fail
+            # visibly, not search Singapore hawker food for whoever asked.
+            "profile_id": profile.get("id", ""),
+            "niche": profile.get("niche", ""),
+            "city": profile.get("city", ""),
             "limit": 8,
             "profile": profile,
         }

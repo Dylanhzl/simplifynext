@@ -8,47 +8,81 @@ Software AI track. The official kick-off stack — **MCP, AWS Bedrock AgentCore,
 
 ## Who it serves
 
-Maya Tan (seed persona): Singapore home-cook / hawker-style TikTok + Instagram. Goal: 3 posts per week and a first small local brand deal. Full persona in [`demo/maya/profile.json`](demo/maya/profile.json).
+Anyone who signs up. A creator makes an account, answers a short onboarding form, and the agents plan their week against **their** niche, city, voice and constraints.
 
-## Run the demo
+Maya Tan is the seed persona used in the demo and the tests — Singapore home-cook / hawker-style TikTok + Instagram, 3 posts a week, chasing a first small local brand deal. She is now an ordinary account created by [`scripts/seed_demo_user.py`](scripts/seed_demo_user.py) from [`demo/maya/profile.json`](demo/maya/profile.json); no service special-cases her.
 
-Fixture mode needs **no LLM keys, no pip install, and no other service running**. The UI server is standard library Python.
+## Run it
+
+You need a database and one API key. Both are free.
 
 ```bash
-python3 ui_client/server.py
+python -m venv .venv && source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Open [http://localhost:8000](http://localhost:8000) and click **Run campaign**. Click it a second time for the week-2 replay. That is the whole demo.
-
-To record the 3-minute video, use the pacing the cue sheet is measured against:
+Put a free [Groq](https://console.groq.com) key in `.env` as `GROQ_API_KEY`, then bring up Postgres and the six services:
 
 ```bash
-DEMO_SPEED=0.6 python3 ui_client/server.py
+docker compose up            # Postgres + migrations + all services
+```
+
+No Docker? Everything runs on SQLite instead — same models, same migrations:
+
+```bash
+export DATABASE_URL="sqlite+aiosqlite:///./creatorloop.db"
+./scripts/run_local.sh       # Windows: .\scripts\run_local.ps1
+```
+
+Then open [http://localhost:8000](http://localhost:8000), create an account, and finish onboarding. To skip straight to a populated board:
+
+```bash
+python scripts/seed_demo_user.py
+# demo@creatorloop.local / creatorloop-demo
+```
+
+### What costs money
+
+Nothing in the default setup.
+
+| Thing | Cost | Notes |
+|---|---|---|
+| Postgres | free | Local container, or SQLite with no container at all |
+| **Groq** (`LLM_PROVIDER=groq`) | **free tier** | The default. A campaign is 60–80 calls and fits comfortably |
+| AWS Bedrock (`LLM_PROVIDER=bedrock`) | paid | Optional. Billed to the hackathon sandbox lease — see below |
+| Tavily / Google Places / SMTP | paid or free tier | **Optional.** Unset, the MCP tools use seeded local data |
+
+`DAILY_RUN_CAP` (default 20 runs per profile per day) is the guard against one account emptying a shared key.
+
+### Tests
+
+```bash
+pytest -q
+```
+
+Runs on SQLite, no services needed. [`tests/test_tenancy.py`](tests/test_tenancy.py) is the important one — it proves one creator cannot read another's rows.
+
+### The keyless fixture demo
+
+[`ui_client/server.py`](ui_client/server.py) still replays [`demo/fixtures/*.jsonl`](demo/fixtures/) with **no database, no keys and no pip install**. It cannot sign anyone in and does not read the database — it exists so the recorded demo always has a fallback.
+
+```bash
+python3 ui_client/server.py          # board only, fixture replay
+DEMO_SPEED=0.6 python3 ui_client/server.py   # the cue sheet's pacing
 ```
 
 ### Full stack (UAT)
 
-Install deps once, then bring up Finder / Pipeline / Engagement / CDR / MCP / UI together:
+`./scripts/run_local.sh` (or `.\scripts\run_local.ps1`) applies migrations, then brings up Finder / Pipeline / Engagement / CDR / MCP / UI together. With services up, run the frozen-HTTP smoke suite:
 
 ```bash
-python -m venv .venv
-# Windows: .\.venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Windows:
-.\scripts\run_local.ps1
-# macOS/Linux:
-./scripts/run_local.sh
+python scripts/uat_smoke.py     # Windows: .\scripts\uat_smoke.ps1
 ```
 
-With services up, run the frozen-HTTP smoke suite:
+22 checks across all six services. It signs up a throwaway account, completes onboarding, runs a full campaign and drives the week-2 adapt loop — so it exercises the thing most likely to break, identity surviving all five hops. Exit code is the number of failures.
 
-```powershell
-.\scripts\uat_smoke.ps1
-```
-
-`USE_FIXTURES=1` (default) keeps Finder/MCP on seed data so UAT does not need Groq keys.
+Set `USE_FIXTURES=1` for a keyless UAT run: the agents return canned output, exercising the whole graph and event stream without calling a model.
 
 ### The AG-UI client (CopilotKit)
 
@@ -67,34 +101,26 @@ registers every card on `CopilotKitProvider`'s `renderToolCalls`.
 CopilotKit 1.69 depends on that exact version, and a second copy in the tree
 makes `HttpAgent` fail to typecheck as an `AbstractAgent`. Bump both together.
 
-### Going live on day 5
+### `USE_FIXTURES`
 
-```bash
-USE_FIXTURES=0 python3 ui_client/server.py       # proxies POST http://localhost:8084/ag-ui
-```
+Defaults to **`0`**. With it on, every named agent returns canned Maya output from
+[`shared/fixtures.py`](shared/fixtures.py) — correct for tests, wrong for anyone
+who is not Maya, which is why it is no longer the default and no longer a
+silent fallback.
 
-No component changes. The browser receives the same AG-UI event stream either
-way; only the source changes. If the CDR agent does not answer, the run falls
-back to fixtures and says so on screen instead of dying mid-demo.
-
-**`USE_FIXTURES` means two different things, so set it per process:**
-
-| Process | `USE_FIXTURES=1` (default) | `USE_FIXTURES=0` |
+| Process | `USE_FIXTURES=0` (default) | `USE_FIXTURES=1` |
 |---|---|---|
-| `ui_client/server.py` | Replay `demo/fixtures/*.jsonl` | Proxy the live CDR at `CDR_AGUI_URL` |
-| `cdr`, `opportunity_finder`, `mcp` | Agents return canned `shared/fixtures` output — real graph, no model calls | Real Groq inference (needs `GROQ_API_KEY`) |
+| `ui_client/app.py` | Proxies the live CDR at `CDR_AGUI_URL` | (same — this flag does not affect it) |
+| `ui_client/server.py` | Proxies the live CDR | Replays `demo/fixtures/*.jsonl` |
+| `cdr`, `opportunity_finder`, `mcp` | Real inference (needs `GROQ_API_KEY`) | Canned output — real graph, no model calls |
 
-So the UI can be live against a CDR whose agents are still on canned output —
-that is the fast, keyless path, and it exercises the whole graph and event
-stream. For a genuinely end-to-end run, set it to `0` on both:
-
-```bash
-USE_FIXTURES=0 python -m uvicorn cdr.app:app --port 8084   # real Groq calls
-USE_FIXTURES=0 python3 ui_client/server.py                 # proxy, not replay
-```
-
-A full three-opportunity live campaign takes roughly 3-5 minutes on Groq,
+A full three-opportunity live campaign takes roughly 3–5 minutes on Groq,
 against about half a second on canned output.
+
+**Missing credentials now fail loudly.** Previously an unset key silently fell
+back to Maya's canned answers, so a creator in Lisbon would be shown Singapore
+laksa opportunities and told they were results. The run reports the failure on
+the trace instead.
 
 ### Running on AWS Bedrock
 
@@ -141,25 +167,29 @@ missing, because that is what the agents will really do.
 > lags by a few hours.
 >
 > **AgentCore Memory is not implemented.** `harness/agentcore.py`'s `put_memory`
-> is a no-op. Memory is SQLite in Pipeline Manager plus `memory.json`. Do not
-> describe it as working.
+> is a no-op. Memory is the `memory` table in Postgres, one row per creator. Do
+> not describe AgentCore Memory as working.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `USE_FIXTURES` | `1` | `0` proxies the live CDR agent |
+| `DATABASE_URL` | Postgres on localhost | `sqlite+aiosqlite:///./creatorloop.db` also works |
+| `INTERNAL_SIGNING_KEY` | dev key | Signs the tenant header. **Set this in production** |
+| `CREATORLOOP_ENV` | `dev` | `production` forces Secure cookies and a real signing key |
+| `USE_FIXTURES` | `0` | `1` returns canned agent output (tests) |
+| `DAILY_RUN_CAP` | `20` | Campaign runs per profile per day. `0` disables |
+| `SESSION_DAYS` | `30` | How long a sign-in lasts |
+| `CORS_ORIGINS` | `UI_URL` + Vite | Browser origins allowed to call the services |
 | `CDR_AGUI_URL` | `http://localhost:8084/ag-ui` | Live AG-UI endpoint |
-| `LIVE_TIMEOUT` | `300` | Seconds to wait on the live stream before falling back |
-| `DEMO_SPEED` | `1.0` | Replay pacing. `0.6` matches the demo cue sheet |
+| `LIVE_TIMEOUT` | `300` | Seconds to wait on the live stream |
 | `PAUSE_BEFORE_SEND` | `0` | Optional HITL toggle. Off by design |
-| `UI_PORT` | `8000` | Board port |
 
 ## Architecture
 
-Five application services plus MCP:
+Five application services plus MCP, over one Postgres database:
 
 | Service | Port | Owner | Job |
 |---|---|---|---|
-| UI Client (AG-UI / CopilotKit) | 8000 | P4 | Campaign board + generative UI for agent tools. |
+| UI Client (AG-UI / CopilotKit) | 8000 | P4 | **Accounts, onboarding**, campaign board, generative UI. |
 | Opportunity Finder | 8081 | P1 | Discover trends, brand-gaps, collabs. |
 | Pipeline Manager | 8082 | P3 | Persist, qualify, calendar, memory, RAG corpus. |
 | Engagement Listener | 8083 | P3 | Inbound replies + analytics → status + memory. |
@@ -169,12 +199,42 @@ Five application services plus MCP:
 CDR = Content Development Representative.
 
 ```
-AG-UI UI → CDR :8084/ag-ui
-MCP :8085 ← Finder + CDR + Pipeline
-Finder → CDR → critique loop → Pipeline
-Engagement Listener → Pipeline memory (adapt)
+browser ── session cookie ──> UI :8000        the only public service
+                                 │
+                                 │ signed X-CreatorLoop-Profile header
+                                 ▼
+                              CDR :8084 ──> MCP :8085 ──> Pipeline :8082
+                                                              │
+Engagement :8083 ──────────────────────────────────────────> Postgres
 OTEL spans on every named agent
 ```
+
+### Tenancy — read this before adding a service
+
+**`creator_profiles` is the tenancy unit, not `users`.** One user can own
+several profiles, so every row that belongs to a creator hangs off
+`profile_id`. Schema lives in [`shared/models.py`](shared/models.py); if a
+table is not there, it does not exist.
+
+Identity travels as a **signed header**, not as a function argument — see
+[`shared/tenant.py`](shared/tenant.py). It rides in a `ContextVar`, the same
+way `cdr/runtime.py` already carries `run_id`, so adding a tool or an agent
+does not mean threading tenancy through its signature.
+
+Three rules that keep this honest:
+
+1. **Only `ui_client` publishes a port.** The backend services have no
+   authentication of their own; they trust the header ui_client mints after
+   checking the session cookie. Publishing their ports would bypass login
+   entirely.
+2. **Build outbound clients with `shared.http_clients.client()`.** A raw
+   `httpx.AsyncClient` sends no tenant headers, and the receiving service will
+   reject it with `401 no_tenant`.
+3. **Never default a missing profile.** `require_profile()` raises. A demo
+   persona substituted for a missing tenant is a confident wrong answer, which
+   is worse than a visible failure.
+
+`pytest tests/test_tenancy.py` is the guard on all of this.
 
 About **34 distinct named agents** (llm, sequential, parallel, loop, tool, custom). Do not collapse them into one mega-prompt. The list per service lives in each service's `agents/` folder; **39** appear by name across the two demo runs.
 
@@ -226,14 +286,27 @@ Work on your own branch, merge to `main` every night. P1 is merge captain for `s
 
 ## Frozen HTTP
 
+Every route below requires the signed tenant header except the auth routes on 8000. Build clients with `shared.http_clients.client()` and it is attached for you.
+
 - `POST /opportunities/search` and `POST /tools/find_opportunities` → `{opportunities[]}` (8081)
-- `POST /cdr/run` → `{run_id}` ; `GET /cdr/runs/{id}/events` SSE (8084)
-- `POST /pipeline/upsert` ; `GET /pipeline/opportunities` ; `POST /pipeline/calendar` ; `POST /tools/persist_and_schedule` ; `GET /pipeline/memory` (8082)
-- `POST /engagement/ingest` ; `POST /engagement/replay_maya_week2` ; `GET /engagement/inbox` (8083)
+- `POST /cdr/run` → `{run_id}` ; `GET /cdr/runs/{id}/events` SSE ; `POST /cdr/runs/{id}/stop` (8084)
+- `POST /pipeline/upsert` ; `GET /pipeline/opportunities` ; `POST /pipeline/calendar` ; `POST /tools/persist_and_schedule` ; `GET|POST /pipeline/memory` (8082)
+- `GET|POST /pipeline/rag` ; `GET|POST /pipeline/engagement` ; `GET|POST /pipeline/analytics` (8082) — **new**, replacing the `demo/maya/*.json` reads
+- `POST /engagement/ingest` ; `POST /engagement/process_week` ; `GET /engagement/inbox` (8083)
 - `POST /ag-ui` AG-UI event stream (8084)
 - `GET /mcp/tools` ; `POST /mcp/call` (8085)
 
-The UI client also serves `POST /ag-ui` on 8000 — same protocol, backed by fixtures or by a proxy to 8084 — plus `GET /api/config`, `GET /api/profile`, `GET /api/rag_corpus` and `POST /api/stop`.
+`POST /engagement/replay_maya_week2` is **gone**. It read one hardcoded file for one persona; `POST /engagement/process_week` does the same job for whichever creator is on the request.
+
+On 8000, the UI client serves `POST /ag-ui` (proxied to 8084 with the tenant header) plus:
+
+| Route | Purpose |
+|---|---|
+| `POST /auth/signup` · `/auth/login` · `/auth/logout` · `GET /auth/me` | Accounts and sessions |
+| `POST /api/profiles` · `GET|POST /api/profile` · `POST /api/profiles/{id}/select` | Onboarding and profile switching |
+| `GET /api/opportunities` · `/api/calendar` · `/api/memory` · `/api/inbox` · `/api/artifacts` · `/api/rag_corpus` | Board data, scoped to the signed-in creator |
+| `GET /api/runs` · `GET /api/runs/{id}/events` | Run history and replay |
+| `POST /api/dev/simulate_week` | Generates a synthetic week so the adapt loop is demonstrable. Disabled when `CREATORLOOP_ENV=production` |
 
 ## Stack
 
@@ -242,7 +315,7 @@ See [`STACK.md`](STACK.md) for the kick-off slide mapping and where each item is
 - **Harness:** LangGraph (graphs) · DeepAgents (`CDRRootAgent`) · Claude Agent SDK (optional specialist)
 - **Protocols:** MCP (tools) · AG-UI (CopilotKit UI) · OTEL (traces)
 - **Runtime:** Groq locally · AWS Bedrock AgentCore for the recorded/deployed demo
-- **Data:** SQLite in Pipeline Manager · RAG corpus in [`demo/maya/rag_corpus.json`](demo/maya/rag_corpus.json)
+- **Data:** Postgres (SQLAlchemy + Alembic), one schema in [`shared/models.py`](shared/models.py) · per-creator RAG corpus in `rag_documents`
 
 ## Demo story
 
@@ -250,3 +323,14 @@ See [`demo/DEMO_SCRIPT.md`](demo/DEMO_SCRIPT.md) for the 3:00 cue sheet, timed a
 
 Week 1: run campaign, parallel research, critique fails the hook at 0.42, rewrite passes at 0.86, outreach sends itself.
 Week 2: Laksa Lab replied interested; noodle posts do 3.1× median and dessert does 0.4×; memory promotes that to a rule and the next week's plan changes on its own.
+
+To drive that live rather than from fixtures: `python scripts/seed_demo_user.py`, sign in, **Run campaign**, then `POST /api/dev/simulate_week` for week 2.
+
+## Schema changes
+
+```bash
+alembic revision --autogenerate -m "what changed"   # after editing shared/models.py
+alembic upgrade head
+```
+
+One migration history for the whole repo. Five chains in a shared repo is the fastest route to a `main` nobody can run.

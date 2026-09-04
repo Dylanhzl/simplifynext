@@ -21,6 +21,7 @@ import httpx
 
 from mcp.tools import tool
 from shared.flags import use_fixtures
+from shared.tenant import current_profile
 
 DEMO = Path(__file__).resolve().parents[2] / "demo" / "maya"
 SEARCH_FIXTURE = DEMO / "search_web.json"
@@ -236,15 +237,23 @@ async def fetch_url(url: str, max_chars: int = 4000) -> dict[str, Any]:
     description="Run the Opportunity Finder pipeline and return ranked opportunities.",
 )
 async def find_opportunities(
-    niche: str = "singapore hawker food",
-    city: str = "Singapore",
+    niche: str = "",
+    city: str = "",
     limit: int = 8,
-    profile_id: str = "maya",
+    profile_id: str = "",
     profile: dict | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Agent-as-tool entry used by CDR when it calls MCP instead of :8081."""
+    """Agent-as-tool entry used by CDR when it calls MCP instead of :8081.
+
+    No persona defaults: searching Singapore hawker food for a creator who
+    never said either is a confident wrong answer.
+    """
     from opportunity_finder.graph import run_search
+
+    profile_id = profile_id or (profile or {}).get("id") or current_profile()
+    if not profile_id:
+        return {"opportunities": [], "error": "find_opportunities requires a creator profile"}
 
     state = await run_search(
         {

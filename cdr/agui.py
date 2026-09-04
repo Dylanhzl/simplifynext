@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from cdr.runtime import get_run, queue
-from cdr.service import execute_run, start_run
+from cdr.service import ProfileMissing, execute_run, start_run
 
 router = APIRouter()
 
@@ -29,12 +29,19 @@ async def ag_ui_run(request: Request) -> StreamingResponse:
     # re-attach; anything else starts a run under the id the client chose, so
     # the client can still correlate the stream it asked for.
     run_id = str(body.get("runId") or body.get("run_id") or "").strip()
-    if not run_id:
-        run_id = start_run(body)
-        asyncio.create_task(execute_run(run_id, body))
-    elif get_run(run_id) is None:
-        start_run(body, run_id=run_id)
-        asyncio.create_task(execute_run(run_id, body))
+    try:
+        if not run_id:
+            run_id = await start_run(body)
+            asyncio.create_task(execute_run(run_id, body))
+        elif get_run(run_id) is None:
+            await start_run(body, run_id=run_id)
+            asyncio.create_task(execute_run(run_id, body))
+    except ProfileMissing as exc:
+        # No verified tenant: refuse rather than run a campaign for nobody.
+        return StreamingResponse(
+            iter([f"data: {json.dumps({'type': 'RUN_ERROR', 'message': str(exc)})}\n\n"]),
+            media_type="text/event-stream",
+        )
 
     async def gen():
         # Replay what a re-attaching client missed, then follow the queue from

@@ -40,7 +40,7 @@
   const statusGroup = (s) => (STATUS_META[s] && STATUS_META[s].group) || "new";
 
   const state = {
-    runId: null, running: false, nextWeek: 1,
+    runId: null, running: false, nextWeek: 1, profileId: null,
     opps: new Map(), traces: 0, mcp: 0,
     memory: new Map(), inbox: new Map(), startedAt: 0,
     pendingTools: new Map(), oppSignatures: new Map(), contentPreview: [],
@@ -544,10 +544,11 @@
     setRunning(true, runId);
     status(week === 1 ? "Planning your week…" : "Checking what came back…", "running");
 
+    // The server overrides profile from the session cookie; sending it here
+    // only keeps the client's own correlation ids readable.
     const payload = {
       runId, week,
-      threadId: "maya",
-      profile: "maya",
+      threadId: state.profileId || runId,
       niche: $("f-niche").value,
       city: $("f-city").value,
       pause_before_send: $("f-pause").checked,
@@ -618,10 +619,19 @@
     } catch (e) {
       $("mode-badge").textContent = "offline";
     }
+    // The board is behind a login now: no session means no data to show, and
+    // no profile means onboarding was never finished.
     try {
-      const p = await (await fetch("/api/profile")).json();
-      $("f-niche").value = p.niche;
-      $("f-city").value = p.city;
+      const res = await fetch("/api/profile");
+      if (res.status === 401) { location.href = "/signin"; return; }
+      if (res.status === 409) { location.href = "/onboarding"; return; }
+      const p = await res.json();
+      state.profileId = p.id;
+      $("f-niche").value = p.niche || "";
+      $("f-city").value = p.city || "";
+      $("f-name").textContent = p.name || p.handle || "Your studio";
+      $("f-handle").textContent = p.handle ? "@" + p.handle : "";
+      $("f-avatar").textContent = (p.name || p.handle || "?").trim()[0].toUpperCase();
     } catch (e) { /* keep the defaults in the markup */ }
   }
 

@@ -115,6 +115,17 @@ p.sub{
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(164,76,52,.55)}
 .btn-primary .arrow{transition:transform .2s cubic-bezier(.23,1,.32,1)}
 .btn-primary:hover .arrow{transform:translateX(4px)}
+.btn-secondary{
+  display:inline-flex;align-items:center;padding:15px 26px;border-radius:999px;
+  border:1px solid var(--line);color:var(--ink);text-decoration:none;
+  font:600 15px/1 "Work Sans",sans-serif;background:rgba(248,243,234,.7);
+  transition:background .18s,border-color .18s;
+}
+.btn-secondary:hover{background:var(--bg-2);border-color:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){
+  .btn-primary,.btn-primary .arrow{transition:none}
+  .btn-primary:hover{transform:none}
+}
 .btn-ghost{
   color:var(--ink-3);text-decoration:none;font-size:14.5px;
   border-bottom:1px solid transparent;padding-bottom:2px;transition:color .18s,border-color .18s;
@@ -181,9 +192,12 @@ footer{
     </p>
 
     <div class="cta">
-      <a class="btn-primary" href="/board">
-        Open the studio board <span class="arrow" aria-hidden="true">→</span>
+      <!-- href is rewritten to /board below when a session already exists, so
+           returning users are not sent through a sign-up they do not need. -->
+      <a class="btn-primary" id="cta" href="/signup">
+        Set up your studio <span class="arrow" aria-hidden="true">→</span>
       </a>
+      <a class="btn-secondary" id="cta-signin" href="/signin">Sign in</a>
     </div>
 
     <div class="proof">
@@ -272,6 +286,24 @@ footer{
   addEventListener('pointerleave', () => { pointer.x = pointer.y = -9999; });
 
   resize(); seed(); frame();
+})();
+
+/* Already signed in? Send them to the board (or finish onboarding) rather
+   than through a sign-up they do not need. */
+(async function(){
+  try {
+    const res = await fetch("/api/config");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (!cfg.authenticated) return;
+    const cta = document.getElementById("cta");
+    const signin = document.getElementById("cta-signin");
+    cta.setAttribute("href", cfg.onboarding_required ? "/onboarding" : "/board");
+    cta.firstChild.textContent = cfg.onboarding_required
+      ? "Finish setting up "
+      : "Open your studio board ";
+    if (signin) signin.hidden = true;
+  } catch (e) { /* landing page still works signed out */ }
 })();
 </script>
 </body>

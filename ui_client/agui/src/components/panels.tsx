@@ -17,13 +17,16 @@ function useStickToBottom(dep: unknown) {
 
 /* ------------------------------------------------------------------ */
 
+export type ProfileChip = { id: string; name: string; handle: string };
+
 export function CampaignBar({
-  niche, city, setNiche, setCity, pause, setPause, mode, board, onRun, onStop,
+  niche, city, setNiche, setCity, pause, setPause, mode, board, profile, onRun, onStop,
 }: {
   niche: string; city: string;
   setNiche: (v: string) => void; setCity: (v: string) => void;
   pause: boolean; setPause: (v: boolean) => void;
   mode: string; board: Board;
+  profile: ProfileChip | null;
   onRun: () => void; onStop: () => void;
 }) {
   return (
@@ -38,8 +41,13 @@ export function CampaignBar({
         <label>City<input value={city} onChange={(e) => setCity(e.target.value)} /></label>
         <label>Profile
           <div className="profile-chip">
-            <span className="avatar">M</span>
-            <span><b>Maya Tan</b><i>@mayacooks.sg</i></span>
+            <span className="avatar">
+              {(profile?.name || profile?.handle || "?").trim().charAt(0).toUpperCase()}
+            </span>
+            <span>
+              <b>{profile?.name || "Loading…"}</b>
+              <i>{profile?.handle ? `@${profile.handle}` : ""}</i>
+            </span>
           </div>
         </label>
       </div>
