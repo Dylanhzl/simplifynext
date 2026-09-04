@@ -55,6 +55,19 @@ Nothing in the default setup.
 
 `DAILY_RUN_CAP` (default 20 runs per profile per day) is the guard against one account emptying a shared key.
 
+### Looking inside the database
+
+```bash
+python scripts/db_peek.py                   # row counts, accounts, profiles
+python scripts/db_peek.py --profile maya    # everything for one creator
+python scripts/db_peek.py opportunities     # dump one table
+```
+
+Works against whatever `DATABASE_URL` points at, so the same command answers
+"is my data actually there" on SQLite or Postgres. On SQLite the whole database
+is the single file named in `DATABASE_URL` (default `./creatorloop.db`), which
+any SQLite GUI will open; on Postgres, `psql creatorloop`.
+
 ### Tests
 
 ```bash
